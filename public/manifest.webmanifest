@@ -1,0 +1,11 @@
+{
+  "name": "Ridge Rush",
+  "short_name": "Ridge Rush",
+  "description": "An original 2D physics hill-climb driving game. Offline, ad-free.",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#12172a",
+  "theme_color": "#2a3d5c",
+  "icons": []
+}
