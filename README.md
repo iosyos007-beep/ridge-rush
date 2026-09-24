@@ -104,5 +104,7 @@ future schema changes can upgrade old saves in place instead of wiping progress.
 ## Status
 
 Phase 1 (core MVP loop: drivable vehicle physics, procedural terrain, fuel/coins, crash
-detection, HUD, results screen) is complete and verified end-to-end. See
-[`PLAN.md`](PLAN.md) for the full phase roadmap.
+detection, HUD, results screen) and Phase 2 (tricks & scoring: flip/back-flip rotation
+counting, air-time bonus, wheelie detection, floating popups, bonus coins on the results
+screen) are complete and verified end-to-end. See [`PLAN.md`](PLAN.md) for the full phase
+roadmap.

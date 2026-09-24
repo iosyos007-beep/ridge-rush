@@ -49,7 +49,7 @@ export class ResultsScene extends Phaser.Scene {
 
     const lines = [
       `Distance: ${data.distanceMeters} m  (Best: ${Math.round(bestDistance)} m)`,
-      `Coins collected: ${data.coinsCollected}`,
+      `Coins collected: ${data.coinsCollected}${data.trickBonusCoins > 0 ? ` (incl. ${data.trickBonusCoins} trick bonus)` : ""}`,
       `Total coins: ${this.saveManager.getData().coins}`,
     ];
     this.add

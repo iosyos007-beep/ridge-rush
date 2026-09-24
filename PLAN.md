@@ -41,9 +41,9 @@ Goal: a single stage, single vehicle, drivable end-to-end, playable via `npm run
 - [x] Verify `npm run dev` runs, drive a full run start-to-crash/out-of-fuel.
 
 ## Phase 2 — Tricks & scoring
-- [ ] `TrickDetector`: front flip / back flip (360° rotation counting while airborne), air
+- [x] `TrickDetector`: front flip / back flip (360° rotation counting while airborne), air
       time bonus (per 0.5s), "neck flip" (landing after a flip), wheelie detection.
-- [ ] Floating text popups ("Back Flip! +500") + bonus coins; landing on head cancels bonus.
+- [x] Floating text popups ("Back Flip! +500") + bonus coins; landing on head cancels bonus.
 
 ## Phase 3 — Progression & economy
 - [ ] `GarageScene`: vehicle list (lock state, price, stat bars), idle preview on flat ground.

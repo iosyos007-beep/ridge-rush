@@ -21,6 +21,12 @@ export class CoinSystem {
     return this.total;
   }
 
+  /** Adds coins directly to the running total (e.g. trick bonuses), without spawning a
+   * pickup entity in the world. */
+  addBonusCoins(amount: number): void {
+    this.total += amount;
+  }
+
   update(distanceMeters: number, cameraRightWorldX: number): void {
     if (distanceMeters < this.nextSpawnDistance) return;
 

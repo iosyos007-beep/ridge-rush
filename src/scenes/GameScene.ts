@@ -9,6 +9,8 @@ import { FuelSystem } from "../systems/FuelSystem.ts";
 import { CoinSystem } from "../systems/CoinSystem.ts";
 import { CameraController } from "../systems/CameraController.ts";
 import { ParallaxBackground } from "../systems/ParallaxBackground.ts";
+import { TrickDetector, type TrickEvent } from "../systems/TrickDetector.ts";
+import { showFloatingText } from "../ui/TrickPopup.ts";
 import type { Vehicle } from "../entities/Vehicle.ts";
 
 export interface GameSceneData {
@@ -19,6 +21,7 @@ export interface GameSceneData {
 export interface RunResults {
   distanceMeters: number;
   coinsCollected: number;
+  trickBonusCoins: number;
   reason: "crashed" | "out-of-fuel";
   isNewRecord: boolean;
 }
@@ -33,6 +36,8 @@ export class GameScene extends Phaser.Scene {
   private coinSystem!: CoinSystem;
   private cameraController!: CameraController;
   private parallax!: ParallaxBackground;
+  private trickDetector!: TrickDetector;
+  private trickBonusCoins = 0;
 
   private startX = 0;
   private distanceMeters = 0;
@@ -59,6 +64,7 @@ export class GameScene extends Phaser.Scene {
     this.stageId = data.stageId;
     this.runEnded = false;
     this.distanceMeters = 0;
+    this.trickBonusCoins = 0;
     this.nextCheckpointDistance = CHECKPOINT_BALANCE.everyMeters;
   }
 
@@ -82,6 +88,7 @@ export class GameScene extends Phaser.Scene {
     this.coinSystem = new CoinSystem(this, this.terrain);
     this.cameraController = new CameraController(this.cameras.main, this.vehicle);
     new CrashDetector(this, this.vehicle, () => this.endRun("crashed"));
+    this.trickDetector = new TrickDetector(this.vehicle, (event) => this.onTrick(event));
 
     if (this.input.keyboard) {
       this.cursors = this.input.keyboard.createCursorKeys();
@@ -103,6 +110,7 @@ export class GameScene extends Phaser.Scene {
 
     this.vehicle.applyInput({ gas, brake });
     this.vehicle.render();
+    this.trickDetector.update(deltaSeconds);
 
     this.distanceMeters = Math.max(
       this.distanceMeters,
@@ -146,6 +154,17 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private onTrick(event: TrickEvent): void {
+    this.trickBonusCoins += event.coins;
+    this.coinSystem.addBonusCoins(event.coins);
+    showFloatingText(
+      this,
+      this.vehicle.chassis.position.x,
+      this.vehicle.chassis.position.y - 60,
+      event.label,
+    );
+  }
+
   getHudSnapshot(): {
     distanceMeters: number;
     fuelRatio: number;
@@ -165,6 +184,7 @@ export class GameScene extends Phaser.Scene {
     const results: RunResults = {
       distanceMeters: Math.round(this.distanceMeters),
       coinsCollected: this.coinSystem.collectedTotal,
+      trickBonusCoins: this.trickBonusCoins,
       reason,
       isNewRecord: false,
     };

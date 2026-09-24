@@ -207,6 +207,14 @@ export class Vehicle {
     return this.rearGroundContacts > 0 || this.frontGroundContacts > 0;
   }
 
+  get isRearGrounded(): boolean {
+    return this.rearGroundContacts > 0;
+  }
+
+  get isFrontGrounded(): boolean {
+    return this.frontGroundContacts > 0;
+  }
+
   get speed(): number {
     const v = this.chassis.velocity;
     return Math.hypot(v.x, v.y);

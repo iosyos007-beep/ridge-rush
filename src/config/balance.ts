@@ -43,3 +43,18 @@ export const CHECKPOINT_BALANCE = {
   coinBonus: 50,
   fuelBonusUnits: 15,
 } as const;
+
+export const TRICK_BALANCE = {
+  /** Coins awarded per full 360° rotation completed while airborne (scales with flip count). */
+  flipCoinsPerRotation: 200,
+  /** Coins awarded per 0.5s increment of air time on a safe landing. */
+  airTimeCoinsPerHalfSecond: 20,
+  /** Minimum seconds airborne before an air-time bonus is granted at all. */
+  airTimeMinSeconds: 0.6,
+  /** Seconds one wheel must be off the ground (while the other is grounded and moving) before
+   * a wheelie bonus triggers; re-triggers only after returning to a two/zero-wheel state. */
+  wheelieMinSeconds: 1,
+  wheelieCoins: 150,
+  /** Minimum forward speed (px/s) required for wheelie detection, so idling doesn't count. */
+  wheelieMinSpeed: 20,
+} as const;
