@@ -5,6 +5,7 @@ import { wrapAngleDelta, countFlips, countAirTimeUnits } from "./TrickMath.ts";
 export interface TrickEvent {
   label: string;
   coins: number;
+  type: "flip" | "airtime" | "wheelie";
 }
 
 const FLIP_ORDINALS = ["", "Double ", "Triple ", "Quad ", "Quintuple "];
@@ -64,7 +65,7 @@ export class TrickDetector {
       const ordinal = FLIP_ORDINALS[count - 1] ?? `${count}x `;
       const flipName = direction === "backward" ? "Back Flip" : "Front Flip";
       const coins = TRICK_BALANCE.flipCoinsPerRotation * count;
-      this.onTrick({ label: `${ordinal}${flipName}! +${coins}`, coins });
+      this.onTrick({ label: `${ordinal}${flipName}! +${coins}`, coins, type: "flip" });
     }
 
     const airUnits = countAirTimeUnits(
@@ -74,7 +75,7 @@ export class TrickDetector {
     );
     if (airUnits >= 1) {
       const coins = airUnits * TRICK_BALANCE.airTimeCoinsPerHalfSecond;
-      this.onTrick({ label: `Air Time! +${coins}`, coins });
+      this.onTrick({ label: `Air Time! +${coins}`, coins, type: "airtime" });
     }
   }
 
@@ -86,7 +87,11 @@ export class TrickDetector {
       this.wheelieSeconds += deltaSeconds;
       if (!this.wheelieAwarded && this.wheelieSeconds >= TRICK_BALANCE.wheelieMinSeconds) {
         this.wheelieAwarded = true;
-        this.onTrick({ label: `Wheelie! +${TRICK_BALANCE.wheelieCoins}`, coins: TRICK_BALANCE.wheelieCoins });
+        this.onTrick({
+          label: `Wheelie! +${TRICK_BALANCE.wheelieCoins}`,
+          coins: TRICK_BALANCE.wheelieCoins,
+          type: "wheelie",
+        });
       }
     } else {
       this.wheelieSeconds = 0;

@@ -6,6 +6,8 @@ import { StageSelectScene } from "./scenes/StageSelectScene.ts";
 import { GameScene } from "./scenes/GameScene.ts";
 import { HUDScene } from "./scenes/HUDScene.ts";
 import { ResultsScene } from "./scenes/ResultsScene.ts";
+import { AchievementsScene } from "./scenes/AchievementsScene.ts";
+import { DailyChallengesScene } from "./scenes/DailyChallengesScene.ts";
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -24,7 +26,17 @@ const config: Phaser.Types.Core.GameConfig = {
       debug: false,
     },
   },
-  scene: [BootScene, MenuScene, GarageScene, StageSelectScene, GameScene, HUDScene, ResultsScene],
+  scene: [
+    BootScene,
+    MenuScene,
+    GarageScene,
+    StageSelectScene,
+    GameScene,
+    HUDScene,
+    ResultsScene,
+    AchievementsScene,
+    DailyChallengesScene,
+  ],
 };
 
 const game = new Phaser.Game(config);

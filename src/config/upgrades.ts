@@ -1,5 +1,6 @@
 import type { VehicleConfig, VehicleUpgradeableStats } from "./vehicles.ts";
 import type { SaveManager } from "../systems/SaveManager.ts";
+import { getSkinById } from "./cosmetics.ts";
 
 /** Every upgrade has the same number of purchasable levels and the same exponential cost
  * curve; only the id/label/description/physics-effects differ per upgrade. */
@@ -87,6 +88,12 @@ export function getEffectiveVehicleConfig(
 
   for (const [statKey, totalBonus] of totalBonusByStat) {
     effective[statKey] = vehicle[statKey] * (1 + totalBonus);
+  }
+
+  const skin = getSkinById(saveManager.getSelectedSkin(vehicle.id));
+  if (skin.id !== "default") {
+    effective.color = skin.color;
+    effective.accentColor = skin.accentColor;
   }
 
   return effective;

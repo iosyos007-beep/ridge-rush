@@ -48,6 +48,10 @@ export class MenuScene extends Phaser.Scene {
     playButton.on("pointerout", () => playButton.setFillStyle(0xe0663f));
     playButton.on("pointerdown", () => this.scene.start("GarageScene"));
 
+    const navY = height * 0.62 + 62;
+    this.createNavButton(width / 2 - 118, navY, "ACHIEVEMENTS", () => this.scene.start("AchievementsScene"));
+    this.createNavButton(width / 2 + 118, navY, "DAILY CHALLENGES", () => this.scene.start("DailyChallengesScene"));
+
     this.add
       .text(width / 2, height * 0.78, "Right/D or GAS button = accelerate | Left/A or BRAKE = reverse", {
         fontFamily: "Arial, sans-serif",
@@ -55,5 +59,22 @@ export class MenuScene extends Phaser.Scene {
         color: "#9fb4c9",
       })
       .setOrigin(0.5);
+  }
+
+  private createNavButton(x: number, y: number, label: string, onClick: () => void): void {
+    const button = this.add
+      .rectangle(x, y, 220, 40, 0x2b3a4a)
+      .setInteractive({ useHandCursor: true });
+    this.add
+      .text(x, y, label, {
+        fontFamily: "Arial, sans-serif",
+        fontSize: "13px",
+        color: "#cfe8ff",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    button.on("pointerover", () => button.setFillStyle(0x38495c));
+    button.on("pointerout", () => button.setFillStyle(0x2b3a4a));
+    button.on("pointerdown", onClick);
   }
 }

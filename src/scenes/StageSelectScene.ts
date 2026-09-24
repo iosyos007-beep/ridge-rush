@@ -3,6 +3,8 @@ import { STAGES } from "../config/stages.ts";
 import { VEHICLES, getVehicleById } from "../config/vehicles.ts";
 import { SaveManager } from "../systems/SaveManager.ts";
 import { SaveManagerEconomyService } from "../systems/EconomyService.ts";
+import { checkAchievements } from "../systems/AchievementManager.ts";
+import { showAchievementToasts } from "../ui/AchievementToast.ts";
 
 /** Lets the player choose an unlocked stage (or buy a locked one) for the currently
  * selected vehicle, showing their personal best distance for each stage+vehicle pair. */
@@ -131,6 +133,8 @@ export class StageSelectScene extends Phaser.Scene {
         if (!this.economy.spendCoins(stage.price)) return;
         this.saveManager.unlockStage(stage.id);
         this.buildUI();
+        const newlyUnlocked = checkAchievements(this.saveManager);
+        if (newlyUnlocked.length > 0) showAchievementToasts(this, newlyUnlocked);
       });
     }
     bg.setDepth(-1);

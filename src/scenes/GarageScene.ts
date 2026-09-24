@@ -9,6 +9,9 @@ import {
 } from "../config/upgrades.ts";
 import { SaveManager } from "../systems/SaveManager.ts";
 import { SaveManagerEconomyService } from "../systems/EconomyService.ts";
+import { SKINS } from "../config/cosmetics.ts";
+import { checkAchievements } from "../systems/AchievementManager.ts";
+import { showAchievementToasts } from "../ui/AchievementToast.ts";
 import { createVehicle } from "../systems/VehicleFactory.ts";
 import type { Vehicle } from "../entities/Vehicle.ts";
 
@@ -122,6 +125,7 @@ export class GarageScene extends Phaser.Scene {
           if (!this.economy.spendCoins(vehicle.price)) return;
           this.saveManager.unlockVehicle(vehicle.id);
           this.buildUI();
+          this.checkAndToastAchievements();
         },
       );
     }
@@ -195,6 +199,19 @@ export class GarageScene extends Phaser.Scene {
         this.drawUpgradeRow(container, 60, cursorY, width - 120, vehicle, upgrade);
         cursorY += 38;
       });
+
+      cursorY += 10;
+      const paintLabel = this.add
+        .text(60, cursorY, "PAINT", {
+          fontFamily: "Arial, sans-serif",
+          fontSize: "13px",
+          color: "#cfe8ff",
+          fontStyle: "bold",
+        })
+        .setOrigin(0, 0.5);
+      container.add(paintLabel);
+      cursorY += 26;
+      cursorY = this.drawPaintRow(container, 60, cursorY, width - 120, vehicle);
     } else {
       const lockedText = this.add
         .text(width / 2, cursorY + 10, "Unlock this vehicle to buy upgrades.", {
@@ -279,6 +296,11 @@ export class GarageScene extends Phaser.Scene {
   private renderPreview = (): void => {
     this.previewVehicle?.render();
   };
+
+  private checkAndToastAchievements(): void {
+    const newlyUnlocked = checkAchievements(this.saveManager);
+    if (newlyUnlocked.length > 0) showAchievementToasts(this, newlyUnlocked);
+  }
 
   private destroyPreview(): void {
     this.events.off(Phaser.Scenes.Events.UPDATE, this.renderPreview, this);
@@ -373,7 +395,64 @@ export class GarageScene extends Phaser.Scene {
       if (!this.economy.spendCoins(cost)) return;
       this.saveManager.setUpgradeLevel(vehicle.id, upgrade.id, level + 1);
       this.buildUI();
+      this.checkAndToastAchievements();
     });
+  }
+
+  /** Draws a row of paint-job swatches: click an unlocked one to select it, or an unaffordable
+   * locked one shows its price; clicking a locked-but-affordable swatch buys and selects it.
+   * Returns the y position just below the row (for cursorY chaining). */
+  private drawPaintRow(
+    container: Phaser.GameObjects.Container,
+    x: number,
+    y: number,
+    width: number,
+    vehicle: VehicleConfig,
+  ): number {
+    const selected = this.saveManager.getSelectedSkin(vehicle.id);
+    const swatchSize = 34;
+    const gap = 10;
+    const perRow = Math.max(1, Math.floor((width + gap) / (swatchSize + gap)));
+
+    SKINS.forEach((skin, i) => {
+      const col = i % perRow;
+      const row = Math.floor(i / perRow);
+      const swatchX = x + col * (swatchSize + gap) + swatchSize / 2;
+      const swatchY = y + row * (swatchSize + gap) + swatchSize / 2;
+      const unlocked = this.saveManager.isSkinUnlocked(skin.id);
+      const isSelected = selected === skin.id;
+      const displayColor = skin.id === "default" ? vehicle.color : skin.color;
+
+      const swatch = this.add
+        .rectangle(swatchX, swatchY, swatchSize, swatchSize, displayColor)
+        .setStrokeStyle(isSelected ? 4 : 2, isSelected ? 0xffe27a : 0x1a1a1a)
+        .setInteractive({ useHandCursor: true });
+      container.add(swatch);
+
+      if (!unlocked) {
+        const priceText = this.add
+          .text(swatchX, swatchY + swatchSize / 2 + 10, `${skin.price}`, {
+            fontFamily: "Arial, sans-serif",
+            fontSize: "10px",
+            color: "#9fb4c9",
+          })
+          .setOrigin(0.5, 0);
+        container.add(priceText);
+      }
+
+      swatch.on("pointerdown", () => {
+        if (!unlocked) {
+          if (!this.economy.spendCoins(skin.price)) return;
+          this.saveManager.unlockSkin(skin.id);
+        }
+        this.saveManager.setSelectedSkin(vehicle.id, skin.id);
+        this.buildUI();
+        this.checkAndToastAchievements();
+      });
+    });
+
+    const rowCount = Math.ceil(SKINS.length / perRow);
+    return y + rowCount * (swatchSize + gap) + 10;
   }
 
   private drawCoinBadge(x: number, y: number, coins: number): void {

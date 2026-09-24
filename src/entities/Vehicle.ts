@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import type { VehicleConfig, VehicleBodyStyle } from "../config/vehicles.ts";
+import { BREAKABLE_PART_BALANCE } from "../config/balance.ts";
 
 export const TERRAIN_LABEL = "terrain";
 export const WHEEL_LABEL = "wheel";
@@ -32,6 +33,13 @@ export class Vehicle {
   private rearGroundContacts = 0;
   private frontGroundContacts = 0;
   private crashed = false;
+
+  /** Optional cosmetic breakable part (spoiler/bumper/tailgate); see `spawnBreakablePart`. */
+  private breakablePart?: MatterJS.BodyType;
+  private breakablePartConstraint?: MatterJS.ConstraintType;
+  private breakablePartGraphics?: Phaser.GameObjects.Graphics;
+  private breakablePartDetached = false;
+  private wasGroundedForImpact = true;
 
   constructor(scene: Phaser.Scene, config: VehicleConfig, x: number, y: number, group: number) {
     this.scene = scene;
@@ -175,7 +183,39 @@ export class Vehicle {
     this.graphics = scene.add.graphics();
     this.graphics.setDepth(10);
 
+    if (config.breakablePartsEnabled) this.spawnBreakablePart(collisionFilter);
+
     this.setupGroundContactTracking();
+  }
+
+  /** Attaches a small decorative part (spoiler/bumper/tailgate) to the rear-top corner of
+   * the chassis via a short, stiff constraint. It renders in world space (unlike the
+   * chassis/wheels, which are drawn relative to the chassis transform each frame) so it can
+   * keep rendering correctly after it detaches and becomes an independent physics body. */
+  private spawnBreakablePart(collisionFilter: MatterJS.ICollisionFilter): void {
+    const matter = this.scene.matter;
+    const { chassisWidth: w, chassisHeight: h } = this.config;
+    const anchor = { x: -w / 2 - 6, y: -h / 2 };
+    const spawnPos = {
+      x: this.chassis.position.x + anchor.x,
+      y: this.chassis.position.y + anchor.y,
+    };
+
+    this.breakablePart = matter.bodies.rectangle(spawnPos.x, spawnPos.y, 26, 12, {
+      collisionFilter,
+      density: 0.0015,
+      friction: 0.4,
+      label: "breakable-part",
+      chamfer: { radius: 3 },
+    });
+    this.breakablePartConstraint = matter.add.constraint(this.chassis, this.breakablePart, 0, 0.9, {
+      pointA: anchor,
+      pointB: { x: 0, y: 0 },
+    });
+    matter.world.add([this.breakablePart, this.breakablePartConstraint]);
+
+    this.breakablePartGraphics = this.scene.add.graphics();
+    this.breakablePartGraphics.setDepth(9);
   }
 
   private setupGroundContactTracking(): void {
@@ -274,6 +314,75 @@ export class Vehicle {
     this.drawWheel(g, this.frontWheel);
     this.drawChassis(g);
     this.drawDriver(g);
+
+    this.detectHardLanding();
+    this.renderBreakablePart();
+  }
+
+  /** Detects the moment of landing (airborne → grounded transition) and, if this vehicle has
+   * an attached breakable part, detaches it when the downward speed at landing exceeds
+   * `BREAKABLE_PART_BALANCE.hardLandingVerticalSpeed`. Purely cosmetic — never affects
+   * driving physics or ends the run (unlike `CrashDetector`, which watches the driver's head). */
+  private detectHardLanding(): void {
+    const grounded = this.isGrounded;
+    if (!grounded) {
+      this.wasGroundedForImpact = false;
+      return;
+    }
+    if (!this.wasGroundedForImpact) {
+      const impactSpeed = Math.abs(this.chassis.velocity.y);
+      if (
+        this.breakablePart &&
+        !this.breakablePartDetached &&
+        impactSpeed >= BREAKABLE_PART_BALANCE.hardLandingVerticalSpeed
+      ) {
+        this.detachBreakablePart();
+      }
+    }
+    this.wasGroundedForImpact = true;
+  }
+
+  /** Snaps off the breakable part's constraint so it becomes a free-tumbling physics body,
+   * gives it a small kick so it visibly flies clear of the chassis, then schedules its
+   * removal after `BREAKABLE_PART_BALANCE.detachedLifetimeSeconds`. */
+  private detachBreakablePart(): void {
+    if (!this.breakablePart || this.breakablePartDetached) return;
+    this.breakablePartDetached = true;
+
+    if (this.breakablePartConstraint) {
+      this.scene.matter.world.remove(this.breakablePartConstraint);
+      this.breakablePartConstraint = undefined;
+    }
+
+    const Body = this.scene.matter.body;
+    Body.setVelocity(this.breakablePart, {
+      x: this.chassis.velocity.x * 0.5 + (Math.random() - 0.5) * 4,
+      y: -Math.abs(this.chassis.velocity.y) * 0.6 - 2,
+    });
+    Body.setAngularVelocity(this.breakablePart, (Math.random() - 0.5) * 0.3);
+
+    this.scene.time.delayedCall(BREAKABLE_PART_BALANCE.detachedLifetimeSeconds * 1000, () => {
+      if (this.breakablePart) this.scene.matter.world.remove(this.breakablePart);
+      this.breakablePart = undefined;
+      this.breakablePartGraphics?.destroy();
+      this.breakablePartGraphics = undefined;
+    });
+  }
+
+  private renderBreakablePart(): void {
+    if (!this.breakablePart || !this.breakablePartGraphics) return;
+    const g = this.breakablePartGraphics;
+    g.clear();
+
+    const { position, angle } = this.breakablePart;
+    g.save();
+    g.translateCanvas(position.x, position.y);
+    g.rotateCanvas(angle);
+    g.fillStyle(0x1a1a1a, 1);
+    g.fillRoundedRect(-15, -8, 30, 16, 4);
+    g.fillStyle(this.config.accentColor, 1);
+    g.fillRoundedRect(-13, -6, 26, 12, 3);
+    g.restore();
   }
 
   private drawChassis(g: Phaser.GameObjects.Graphics): void {
@@ -499,5 +608,8 @@ export class Vehicle {
       this.torso,
       this.head,
     ]);
+    if (this.breakablePartConstraint) this.scene.matter.world.remove(this.breakablePartConstraint);
+    if (this.breakablePart) this.scene.matter.world.remove(this.breakablePart);
+    this.breakablePartGraphics?.destroy();
   }
 }

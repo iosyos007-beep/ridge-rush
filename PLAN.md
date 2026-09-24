@@ -58,11 +58,14 @@ Goal: a single stage, single vehicle, drivable end-to-end, playable via `npm run
 - [x] Personal-best distance per stage per vehicle. Economy balance in one config file.
 
 ## Phase 4 — Retention features
-- [ ] `config/dailyChallenges.ts` + `ChallengeManager`: 3 daily challenges from a date seed.
-- [ ] `config/achievements.ts` + `AchievementManager`: ~25 achievements, toast notifications,
-      achievements screen.
-- [ ] Cosmetics: paint colors/skins per vehicle, bought with coins.
-- [ ] Optional breakable cosmetic parts (spoiler/bumper) on hard impacts.
+- [x] `config/dailyChallenges.ts` + `ChallengeManager`: 3 daily challenges from a date seed,
+      deterministic per local calendar day, max/sum progress aggregation, one-time payouts.
+- [x] `config/achievements.ts` + `AchievementManager`: 26 achievements, toast notifications,
+      `AchievementsScene`.
+- [x] Cosmetics: shared paint/skin palette (6 finishes) selectable per vehicle from the
+      Garage, bought with coins, persisted per-vehicle.
+- [x] Optional breakable cosmetic parts (rear panel) on hard impacts for 3 vehicles (Hauler,
+      Apex Sprinter, Colossus); purely visual, no gameplay penalty.
 
 ## Phase 5 — Polish
 - [ ] `AudioManager`: engine pitch follows wheel RPM, SFX (coin/fuel/crash/UI), per-stage

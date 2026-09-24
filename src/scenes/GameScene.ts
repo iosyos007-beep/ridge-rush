@@ -27,6 +27,8 @@ export interface RunResults {
   distanceMeters: number;
   coinsCollected: number;
   trickBonusCoins: number;
+  flips: number;
+  wheelies: number;
   reason: "crashed" | "out-of-fuel";
   isNewRecord: boolean;
 }
@@ -44,6 +46,8 @@ export class GameScene extends Phaser.Scene {
   private parallax!: ParallaxBackground;
   private trickDetector!: TrickDetector;
   private trickBonusCoins = 0;
+  private flipsThisRun = 0;
+  private wheeliesThisRun = 0;
   private headlightCone?: Phaser.GameObjects.Graphics;
 
   private startX = 0;
@@ -72,6 +76,8 @@ export class GameScene extends Phaser.Scene {
     this.runEnded = false;
     this.distanceMeters = 0;
     this.trickBonusCoins = 0;
+    this.flipsThisRun = 0;
+    this.wheeliesThisRun = 0;
     this.nextCheckpointDistance = CHECKPOINT_BALANCE.everyMeters;
   }
 
@@ -205,6 +211,8 @@ export class GameScene extends Phaser.Scene {
 
   private onTrick(event: TrickEvent): void {
     this.trickBonusCoins += event.coins;
+    if (event.type === "flip") this.flipsThisRun += 1;
+    if (event.type === "wheelie") this.wheeliesThisRun += 1;
     this.coinSystem.addBonusCoins(event.coins);
     showFloatingText(
       this,
@@ -236,6 +244,8 @@ export class GameScene extends Phaser.Scene {
       distanceMeters: Math.round(this.distanceMeters),
       coinsCollected: this.coinSystem.collectedTotal,
       trickBonusCoins: this.trickBonusCoins,
+      flips: this.flipsThisRun,
+      wheelies: this.wheeliesThisRun,
       reason,
       isNewRecord: false,
     };

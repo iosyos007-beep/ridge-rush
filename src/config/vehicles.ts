@@ -62,6 +62,9 @@ export interface VehicleConfig extends VehicleUpgradeableStats {
   color: number;
   accentColor: number;
   bodyStyle: VehicleBodyStyle;
+  /** If true, this vehicle has a small cosmetic part (spoiler/bumper) that can detach on a
+   * hard landing (see `Vehicle`'s breakable-part logic). Purely visual; optional per vehicle. */
+  breakablePartsEnabled?: boolean;
   /** The one vehicle-specific upgrade slot (in addition to the four shared CORE_UPGRADES). */
   specialUpgrade: UpgradeDef;
 }
@@ -154,6 +157,7 @@ export const PICKUP_TRUCK: VehicleConfig = {
   color: 0x3a6fb0,
   accentColor: 0x1f2f3f,
   bodyStyle: "truck",
+  breakablePartsEnabled: true,
   specialUpgrade: {
     id: "long-haul-tank",
     name: "Long-Haul Tank",
@@ -186,6 +190,7 @@ export const RALLY_CAR: VehicleConfig = {
   color: 0xd94f4f,
   accentColor: 0x1a1a1a,
   bodyStyle: "rally",
+  breakablePartsEnabled: true,
   specialUpgrade: {
     id: "turbo-kit",
     name: "Turbo Kit",
@@ -218,6 +223,7 @@ export const MONSTER_TRUCK: VehicleConfig = {
   color: 0x5fae4a,
   accentColor: 0x2b3a4a,
   bodyStyle: "monster",
+  breakablePartsEnabled: true,
   specialUpgrade: {
     id: "monster-grip",
     name: "Monster Grip",

@@ -1,3 +1,21 @@
+/** Lifetime totals accumulated across every run, used to evaluate achievements and some
+ * daily challenges. Distinct from per-stage/per-vehicle best distances. */
+export interface LifetimeStats {
+  totalDistanceMeters: number;
+  totalCoinsEarned: number;
+  totalFlips: number;
+  totalWheelies: number;
+  totalRuns: number;
+}
+
+/** Today's 3 generated daily challenges plus in-progress/completed state. Regenerated
+ * (see `ChallengeManager`) whenever `dateKey` no longer matches "today". */
+export interface DailyChallengeState {
+  dateKey: string;
+  progressById: Record<string, number>;
+  completedIds: string[];
+}
+
 export interface SaveDataV1 {
   version: 1;
   bestDistanceByStageVehicle: Record<string, number>;
@@ -6,6 +24,11 @@ export interface SaveDataV1 {
   unlockedStageIds: string[];
   upgradeLevels: Record<string, Record<string, number>>;
   selectedVehicleId: string;
+  stats: LifetimeStats;
+  unlockedAchievementIds: string[];
+  unlockedSkinIds: string[];
+  selectedSkinByVehicle: Record<string, string>;
+  dailyChallenge: DailyChallengeState;
   settings: {
     musicVolume: number;
     sfxVolume: number;
@@ -29,6 +52,21 @@ function createDefaultSave(): SaveDataV1 {
     unlockedStageIds: ["green-hills"],
     upgradeLevels: {},
     selectedVehicleId: "starter-jeep",
+    stats: {
+      totalDistanceMeters: 0,
+      totalCoinsEarned: 0,
+      totalFlips: 0,
+      totalWheelies: 0,
+      totalRuns: 0,
+    },
+    unlockedAchievementIds: [],
+    unlockedSkinIds: [],
+    selectedSkinByVehicle: {},
+    dailyChallenge: {
+      dateKey: "",
+      progressById: {},
+      completedIds: [],
+    },
     settings: {
       musicVolume: 0.7,
       sfxVolume: 0.8,
@@ -64,6 +102,25 @@ function migrate(data: { version?: unknown }): SaveDataV1 {
   const loaded = data as SaveDataV1;
   if (typeof loaded.selectedVehicleId !== "string") {
     loaded.selectedVehicleId = "starter-jeep";
+  }
+  // Defensive backfill for saves written before Phase 4 (stats/achievements/cosmetics/daily
+  // challenges) existed within v1, same pattern as `selectedVehicleId` above.
+  if (typeof loaded.stats !== "object" || loaded.stats === null) {
+    loaded.stats = {
+      totalDistanceMeters: 0,
+      totalCoinsEarned: 0,
+      totalFlips: 0,
+      totalWheelies: 0,
+      totalRuns: 0,
+    };
+  }
+  if (!Array.isArray(loaded.unlockedAchievementIds)) loaded.unlockedAchievementIds = [];
+  if (!Array.isArray(loaded.unlockedSkinIds)) loaded.unlockedSkinIds = [];
+  if (typeof loaded.selectedSkinByVehicle !== "object" || loaded.selectedSkinByVehicle === null) {
+    loaded.selectedSkinByVehicle = {};
+  }
+  if (typeof loaded.dailyChallenge !== "object" || loaded.dailyChallenge === null) {
+    loaded.dailyChallenge = { dateKey: "", progressById: {}, completedIds: [] };
   }
   return loaded;
 }
@@ -171,6 +228,71 @@ export class SaveManager {
 
   resetProgress(): void {
     this.data = createDefaultSave();
+    this.save();
+  }
+
+  // --- Phase 4: lifetime stats (achievements) -----------------------------------------
+
+  getStats(): Readonly<LifetimeStats> {
+    return this.data.stats;
+  }
+
+  /** Called once per completed run to accumulate lifetime totals used by achievements and
+   * some daily challenges. Coins/flips/wheelies should be this run's totals, not deltas. */
+  recordRunStats(distanceMeters: number, coinsEarned: number, flips: number, wheelies: number): void {
+    this.data.stats.totalDistanceMeters += distanceMeters;
+    this.data.stats.totalCoinsEarned += coinsEarned;
+    this.data.stats.totalFlips += flips;
+    this.data.stats.totalWheelies += wheelies;
+    this.data.stats.totalRuns += 1;
+    this.save();
+  }
+
+  // --- Phase 4: achievements -----------------------------------------------------------
+
+  isAchievementUnlocked(achievementId: string): boolean {
+    return this.data.unlockedAchievementIds.includes(achievementId);
+  }
+
+  unlockAchievement(achievementId: string): void {
+    if (!this.data.unlockedAchievementIds.includes(achievementId)) {
+      this.data.unlockedAchievementIds.push(achievementId);
+      this.save();
+    }
+  }
+
+  // --- Phase 4: cosmetics/skins ----------------------------------------------------------
+
+  isSkinUnlocked(skinId: string): boolean {
+    return skinId === "default" || this.data.unlockedSkinIds.includes(skinId);
+  }
+
+  unlockSkin(skinId: string): void {
+    if (!this.data.unlockedSkinIds.includes(skinId)) {
+      this.data.unlockedSkinIds.push(skinId);
+      this.save();
+    }
+  }
+
+  getSelectedSkin(vehicleId: string): string {
+    return this.data.selectedSkinByVehicle[vehicleId] ?? "default";
+  }
+
+  setSelectedSkin(vehicleId: string, skinId: string): void {
+    this.data.selectedSkinByVehicle[vehicleId] = skinId;
+    this.save();
+  }
+
+  // --- Phase 4: daily challenges ---------------------------------------------------------
+
+  getDailyChallengeState(): Readonly<DailyChallengeState> {
+    return this.data.dailyChallenge;
+  }
+
+  /** Overwrites today's challenge state (used both to seed a fresh day's challenges and to
+   * persist updated progress/completion). */
+  setDailyChallengeState(state: DailyChallengeState): void {
+    this.data.dailyChallenge = state;
     this.save();
   }
 }

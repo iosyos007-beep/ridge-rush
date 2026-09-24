@@ -3,9 +3,12 @@ import type { RunResults } from "./GameScene.ts";
 import { SaveManager } from "../systems/SaveManager.ts";
 import { getVehicleById } from "../config/vehicles.ts";
 import { getStageById } from "../config/stages.ts";
+import { checkAchievements } from "../systems/AchievementManager.ts";
+import { applyRunToChallenges } from "../systems/ChallengeManager.ts";
 
 /** Shows run stats after a crash or out-of-fuel ending, with Retry/Garage/Stages buttons.
- * Records coins and best-distance (per stage+vehicle) to the SaveManager. */
+ * Records coins and best-distance (per stage+vehicle) to the SaveManager, plus (Phase 4)
+ * lifetime stats, achievement unlocks, and daily challenge progress. */
 export class ResultsScene extends Phaser.Scene {
   private saveManager!: SaveManager;
 
@@ -24,6 +27,17 @@ export class ResultsScene extends Phaser.Scene {
       data.distanceMeters,
     );
     const bestDistance = this.saveManager.getBestDistance(data.stageId, data.vehicleId);
+
+    this.saveManager.recordRunStats(data.distanceMeters, data.coinsCollected, data.flips, data.wheelies);
+    const newAchievements = checkAchievements(this.saveManager);
+    const completedChallenges = applyRunToChallenges(this.saveManager, {
+      stageId: data.stageId,
+      vehicleId: data.vehicleId,
+      distanceMeters: data.distanceMeters,
+      coinsCollected: data.coinsCollected,
+      flips: data.flips,
+      wheelies: data.wheelies,
+    }).filter((c) => c.justCompleted);
 
     this.add.rectangle(0, 0, width, height, 0x0f1a24).setOrigin(0, 0);
 
@@ -56,6 +70,12 @@ export class ResultsScene extends Phaser.Scene {
       `Coins collected: ${data.coinsCollected}${data.trickBonusCoins > 0 ? ` (incl. ${data.trickBonusCoins} trick bonus)` : ""}`,
       `Total coins: ${this.saveManager.getData().coins}`,
     ];
+    for (const achievement of newAchievements) {
+      lines.push(`\ud83c\udfc6 ${achievement.name}! +${achievement.coinReward}`);
+    }
+    for (const { challenge } of completedChallenges) {
+      lines.push(`\u2705 Daily challenge complete! +${challenge.coinReward}`);
+    }
     this.add
       .text(width / 2, height * 0.34, lines.join("\n"), {
         fontFamily: "Arial, sans-serif",

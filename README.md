@@ -38,15 +38,19 @@ The game also auto-pauses when the browser tab loses focus.
 ```
 src/
   main.ts              Phaser game bootstrap (Matter physics config, scale, auto-pause)
-  config/              Data-driven config: vehicles, stages, upgrades, balance constants
+  config/              Data-driven config: vehicles, stages, upgrades, balance constants,
+                       achievements, dailyChallenges, cosmetics
   scenes/              BootScene, MenuScene, GarageScene, StageSelectScene, GameScene,
-                       HUDScene, ResultsScene
+                       HUDScene, ResultsScene, AchievementsScene, DailyChallengesScene
   systems/             TerrainGenerator, VehicleFactory, FuelSystem, CoinSystem,
                        ObstacleSystem, CameraController, CrashDetector, SaveManager,
                        EconomyService, ParallaxBackground, TerrainHeightField (pure,
-                       testable terrain math)
-  entities/            Vehicle (chassis + wheels + ragdoll driver, 8 body styles), Pickup
-test/                  Vitest unit tests (SaveManager, upgrades, TerrainHeightField)
+                       testable terrain math), AchievementManager, ChallengeManager
+  entities/            Vehicle (chassis + wheels + ragdoll driver, 8 body styles, optional
+                       breakable cosmetic part), Pickup
+  ui/                  AchievementToast (stacked, auto-fading unlock notifications)
+test/                  Vitest unit tests (SaveManager, upgrades, TerrainHeightField,
+                       achievements, dailyChallenges, ChallengeManager)
 ```
 
 ## How the physics feel is tuned
@@ -117,26 +121,70 @@ for Scrapyard-style pushable obstacle crates (`ObstacleSystem`).
 ## Persistence
 
 All progress (best distance per stage+vehicle, coins, vehicle/stage unlocks, upgrade levels,
-selected vehicle, settings) is stored in `localStorage` via `SaveManager`, using a versioned
-JSON schema (`CURRENT_SAVE_VERSION`) with a migration function so future schema changes can
-upgrade old saves in place instead of wiping progress. Each scene that reads/writes save data
-constructs its own `SaveManager` **inside `create()`** (not as a class field) so it always
-reflects the latest state — Phaser instantiates scene classes once at boot and reuses them
-across `scene.start()` calls, so a field-initialized `SaveManager` would read a stale
-boot-time snapshot forever and silently clobber other scenes' writes.
+selected vehicle, settings, lifetime stats, unlocked achievements, unlocked/selected skins,
+and today's daily challenge state) is stored in `localStorage` via `SaveManager`, using a
+versioned JSON schema (`CURRENT_SAVE_VERSION`) with a migration function so future schema
+changes can upgrade old saves in place instead of wiping progress. Each scene that
+reads/writes save data constructs its own `SaveManager` **inside `create()`** (not as a class
+field) so it always reflects the latest state — Phaser instantiates scene classes once at
+boot and reuses them across `scene.start()` calls, so a field-initialized `SaveManager` would
+read a stale boot-time snapshot forever and silently clobber other scenes' writes.
+
+## Adding a new achievement (config only)
+
+Open [`src/config/achievements.ts`](src/config/achievements.ts) and add a new entry to the
+`ACHIEVEMENTS` array with a unique `id`, `name`, `description`, `coinReward`, and a `check`
+function that reads the read-only `AchievementContext` (lifetime stats, unlocked vehicles/
+stages/skins, upgrade levels) and returns `true` once earned. `AchievementManager.
+checkAchievements()` runs this over every not-yet-unlocked achievement after each run,
+upgrade purchase, and unlock, pays out `coinReward` exactly once, and returns the newly
+unlocked list for toast notifications — no other code needs to change.
+
+## Adding a new daily challenge template (config only)
+
+Open [`src/config/dailyChallenges.ts`](src/config/dailyChallenges.ts) and add a new
+`ChallengeTemplate` to `CHALLENGE_TEMPLATES`: a `metric` (`distanceInStage`,
+`distanceWithVehicle`, `flipsInRun`, `wheeliesInRun`, or `coinsToday`), an `aggregate` rule
+(`"max"` for "best single run" style goals, `"sum"` for "cumulative today" goals), and a
+target/reward range. `generateDailyChallenges(dateKey)` deterministically shuffles and picks
+3 templates per local calendar day (seeded from the date string itself, so every player sees
+the same challenges on the same day and they regenerate automatically at local midnight).
+
+## Cosmetics (paint jobs)
+
+[`src/config/cosmetics.ts`](src/config/cosmetics.ts) defines a shared `SKINS` palette (a
+"Factory Paint" default plus 5 purchasable finishes) that any vehicle can select
+independently from the Garage's PAINT row. Skins are bought once and then reusable across
+every vehicle. To add a new finish, add an entry to `SKINS` with an `id`, `name`, `price`,
+and `color`/`accentColor` overrides — `getEffectiveVehicleConfig()` in
+[`src/config/upgrades.ts`](src/config/upgrades.ts) already applies the selected skin
+wherever a vehicle's effective config is resolved (gameplay, Garage preview), so no other
+wiring is required.
 
 ## Status
 
 Phase 1 (core MVP loop: drivable vehicle physics, procedural terrain, fuel/coins, crash
 detection, HUD, results screen), Phase 2 (tricks & scoring: flip/back-flip rotation
 counting, air-time bonus, wheelie detection, floating popups, bonus coins on the results
-screen), and Phase 3 (progression & economy: `GarageScene` with 8 vehicles, upgrades and an
+screen), Phase 3 (progression & economy: `GarageScene` with 8 vehicles, upgrades and an
 idling preview; `StageSelectScene` with 6 stages; per-vehicle upgrades; checkpoints; personal
-bests per stage+vehicle) are complete and verified end-to-end. See [`PLAN.md`](PLAN.md) for
-the full phase roadmap.
+bests per stage+vehicle), and Phase 4 (retention: 26 achievements with toast notifications
+and an `AchievementsScene`; 3 daily challenges per local day with progress bars in
+`DailyChallengesScene`; a 6-finish paint/skin picker in the Garage; breakable cosmetic parts
+that detach on hard landings for 3 vehicles) are complete and verified end-to-end. See
+[`PLAN.md`](PLAN.md) for the full phase roadmap.
 
 Two deliberate scope interpretations from Phase 3: each vehicle's "special" upgrade slot
 (the spec's "Fuel Tank, Boost, Downforce" suggestion) reuses one of the existing tunable
 physics stats rather than inventing new mechanics, and the six-legged "Crab Crawler" runs on
 the same 2-wheel physics rig as every other vehicle — its extra legs are decorative line art
 drawn on top, since the physics/suspension system only supports exactly 2 wheel bodies.
+
+Three deliberate scope interpretations from Phase 4: daily challenges roll over at **local**
+midnight (`getTodayDateKey()` uses the device's own calendar day), not UTC, so a player's
+"today" always matches their own clock; paint jobs are a **shared cross-vehicle palette**
+(buy a finish once, apply it to any vehicle) rather than unique-per-vehicle skins, since the
+spec only asked for "paint colors/skins per vehicle" without requiring vehicle-exclusive
+options; and breakable parts are enabled on 3 vehicles whose flavor text already implies
+fragility or heavy impacts (Hauler, Apex Sprinter, Colossus) rather than all 8, since the
+spec described it as an "optional flag per vehicle."

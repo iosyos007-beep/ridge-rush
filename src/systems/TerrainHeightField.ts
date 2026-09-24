@@ -5,7 +5,7 @@ import type { StageConfig } from "../config/stages.ts";
  * Deterministic pseudo-random number generator (mulberry32), seeded from a numeric seed.
  * Used to seed simplex-noise so the same stage seed always produces the same terrain.
  */
-function mulberry32(seed: number): () => number {
+export function mulberry32(seed: number): () => number {
   let a = seed;
   return function random(): number {
     a |= 0;

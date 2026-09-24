@@ -58,3 +58,14 @@ export const TRICK_BALANCE = {
   /** Minimum forward speed (px/s) required for wheelie detection, so idling doesn't count. */
   wheelieMinSpeed: 20,
 } as const;
+
+/** Optional cosmetic breakable parts (spoiler/bumper/tailgate), enabled per-vehicle via
+ * `VehicleConfig.breakablePartsEnabled`. Purely visual — detaching carries no gameplay
+ * penalty (see `Vehicle`'s breakable-part logic). */
+export const BREAKABLE_PART_BALANCE = {
+  /** Downward chassis speed (Matter velocity units) on landing above which the part detaches;
+   * tuned so ordinary bumps don't trigger it but a real hard landing off a big jump does. */
+  hardLandingVerticalSpeed: 14,
+  /** Seconds after detaching before the loose part is removed from the world. */
+  detachedLifetimeSeconds: 3,
+} as const;
