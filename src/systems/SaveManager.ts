@@ -5,6 +5,7 @@ export interface SaveDataV1 {
   unlockedVehicleIds: string[];
   unlockedStageIds: string[];
   upgradeLevels: Record<string, Record<string, number>>;
+  selectedVehicleId: string;
   settings: {
     musicVolume: number;
     sfxVolume: number;
@@ -27,6 +28,7 @@ function createDefaultSave(): SaveDataV1 {
     unlockedVehicleIds: ["starter-jeep"],
     unlockedStageIds: ["green-hills"],
     upgradeLevels: {},
+    selectedVehicleId: "starter-jeep",
     settings: {
       musicVolume: 0.7,
       sfxVolume: 0.8,
@@ -58,7 +60,12 @@ function migrate(data: { version?: unknown }): SaveDataV1 {
     return createDefaultSave();
   }
 
-  return data as SaveDataV1;
+  // Defensive backfill for saves written before `selectedVehicleId` existed within v1.
+  const loaded = data as SaveDataV1;
+  if (typeof loaded.selectedVehicleId !== "string") {
+    loaded.selectedVehicleId = "starter-jeep";
+  }
+  return loaded;
 }
 
 export class SaveManager {
@@ -150,6 +157,15 @@ export class SaveManager {
 
   updateSettings(partial: Partial<SaveDataV1["settings"]>): void {
     this.data.settings = { ...this.data.settings, ...partial };
+    this.save();
+  }
+
+  getSelectedVehicleId(): string {
+    return this.data.selectedVehicleId;
+  }
+
+  setSelectedVehicleId(vehicleId: string): void {
+    this.data.selectedVehicleId = vehicleId;
     this.save();
   }
 

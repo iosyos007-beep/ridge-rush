@@ -1,10 +1,7 @@
 import Phaser from "phaser";
-import { STARTER_JEEP } from "../config/vehicles.ts";
-import { GREEN_HILLS } from "../config/stages.ts";
 
-/** Simple title screen with a single Play button. Garage/stage-select flow is added in a
- * later phase; for the Phase 1 MVP the only run available is the starter vehicle on the
- * default stage. */
+/** Simple title screen with a single Play button, routing into the Garage to pick a
+ * vehicle before choosing a stage. */
 export class MenuScene extends Phaser.Scene {
   constructor() {
     super("MenuScene");
@@ -49,7 +46,7 @@ export class MenuScene extends Phaser.Scene {
 
     playButton.on("pointerover", () => playButton.setFillStyle(0xf07a52));
     playButton.on("pointerout", () => playButton.setFillStyle(0xe0663f));
-    playButton.on("pointerdown", () => this.startRun());
+    playButton.on("pointerdown", () => this.scene.start("GarageScene"));
 
     this.add
       .text(width / 2, height * 0.78, "Right/D or GAS button = accelerate | Left/A or BRAKE = reverse", {
@@ -58,9 +55,5 @@ export class MenuScene extends Phaser.Scene {
         color: "#9fb4c9",
       })
       .setOrigin(0.5);
-  }
-
-  private startRun(): void {
-    this.scene.start("GameScene", { vehicleId: STARTER_JEEP.id, stageId: GREEN_HILLS.id });
   }
 }

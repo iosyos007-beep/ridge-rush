@@ -38,13 +38,15 @@ The game also auto-pauses when the browser tab loses focus.
 ```
 src/
   main.ts              Phaser game bootstrap (Matter physics config, scale, auto-pause)
-  config/              Data-driven config: vehicles, stages, balance constants
-  scenes/              BootScene, MenuScene, GameScene, HUDScene, ResultsScene
+  config/              Data-driven config: vehicles, stages, upgrades, balance constants
+  scenes/              BootScene, MenuScene, GarageScene, StageSelectScene, GameScene,
+                       HUDScene, ResultsScene
   systems/             TerrainGenerator, VehicleFactory, FuelSystem, CoinSystem,
-                       CameraController, CrashDetector, SaveManager, ParallaxBackground,
-                       TerrainHeightField (pure, testable terrain math)
-  entities/            Vehicle (chassis + wheels + ragdoll driver), Pickup
-test/                  Vitest unit tests (SaveManager, TerrainHeightField)
+                       ObstacleSystem, CameraController, CrashDetector, SaveManager,
+                       EconomyService, ParallaxBackground, TerrainHeightField (pure,
+                       testable terrain math)
+  entities/            Vehicle (chassis + wheels + ragdoll driver, 8 body styles), Pickup
+test/                  Vitest unit tests (SaveManager, upgrades, TerrainHeightField)
 ```
 
 ## How the physics feel is tuned
@@ -87,24 +89,54 @@ read from this config. Fields you'll typically tweak:
 - `suspensionStiffness`, `suspensionDamping`, `suspensionRestLength` — ride feel.
 - `tireFriction`, `airControlTorque`, `centerOfMassOffsetY` — grip and air control.
 - `color`, `accentColor` — procedural rendering tint (no sprite assets required).
+- `bodyStyle` — which `drawBodyTopper()` case in `entities/Vehicle.ts` draws its silhouette
+  (`"jeep" | "bike" | "truck" | "rally" | "monster" | "tractor" | "buggy" | "crab"`).
+- `specialUpgrade` — the vehicle's 5th, unique upgrade slot (see below); every vehicle also
+  gets the 4 shared `CORE_UPGRADES` automatically.
+
+## Adding a new upgrade or tuning the economy
+
+`src/config/upgrades.ts` defines the 4 shared upgrades (Engine, Suspension, Tires, 4WD
+Traction) in `CORE_UPGRADES`, plus each vehicle's unique 5th slot via its own
+`specialUpgrade` field in `config/vehicles.ts`. An upgrade's `effects` map lists which base
+stats it bumps and by how much per level (fractional, non-compounding — multiple upgrades
+affecting the same stat add together against the vehicle's *base* value). All upgrades share
+`UPGRADE_MAX_LEVEL` (10) and the same exponential cost curve (`getUpgradeCost`); tweak
+`UPGRADE_BASE_COST`/`UPGRADE_COST_GROWTH` to rebalance the whole economy in one place.
+Vehicle/stage unlock prices live directly on each `VehicleConfig`/`StageConfig` as `price`.
 
 ## Adding a new stage (config only)
 
 Open [`src/config/stages.ts`](src/config/stages.ts) and add a new `StageConfig` object to
 the `STAGES` array (copy `GREEN_HILLS` as a starting point). Terrain parameters (amplitude,
 frequency, roughness, max slope) are consumed by the seeded, deterministic
-`TerrainHeightField`, so the same stage `seed` always generates the same terrain.
+`TerrainHeightField`, so the same stage `seed` always generates the same terrain. Set
+`hasHeadlights: true` for a dark stage (draws a headlight cone in `GameScene`), or `hazards`
+for Scrapyard-style pushable obstacle crates (`ObstacleSystem`).
 
 ## Persistence
 
-All progress (best distance, coins, unlocks, upgrades, settings) is stored in `localStorage`
-via `SaveManager`, using a versioned JSON schema (`SAVE_VERSION`) with a migration function so
-future schema changes can upgrade old saves in place instead of wiping progress.
+All progress (best distance per stage+vehicle, coins, vehicle/stage unlocks, upgrade levels,
+selected vehicle, settings) is stored in `localStorage` via `SaveManager`, using a versioned
+JSON schema (`CURRENT_SAVE_VERSION`) with a migration function so future schema changes can
+upgrade old saves in place instead of wiping progress. Each scene that reads/writes save data
+constructs its own `SaveManager` **inside `create()`** (not as a class field) so it always
+reflects the latest state — Phaser instantiates scene classes once at boot and reuses them
+across `scene.start()` calls, so a field-initialized `SaveManager` would read a stale
+boot-time snapshot forever and silently clobber other scenes' writes.
 
 ## Status
 
 Phase 1 (core MVP loop: drivable vehicle physics, procedural terrain, fuel/coins, crash
-detection, HUD, results screen) and Phase 2 (tricks & scoring: flip/back-flip rotation
+detection, HUD, results screen), Phase 2 (tricks & scoring: flip/back-flip rotation
 counting, air-time bonus, wheelie detection, floating popups, bonus coins on the results
-screen) are complete and verified end-to-end. See [`PLAN.md`](PLAN.md) for the full phase
-roadmap.
+screen), and Phase 3 (progression & economy: `GarageScene` with 8 vehicles, upgrades and an
+idling preview; `StageSelectScene` with 6 stages; per-vehicle upgrades; checkpoints; personal
+bests per stage+vehicle) are complete and verified end-to-end. See [`PLAN.md`](PLAN.md) for
+the full phase roadmap.
+
+Two deliberate scope interpretations from Phase 3: each vehicle's "special" upgrade slot
+(the spec's "Fuel Tank, Boost, Downforce" suggestion) reuses one of the existing tunable
+physics stats rather than inventing new mechanics, and the six-legged "Crab Crawler" runs on
+the same 2-wheel physics rig as every other vehicle — its extra legs are decorative line art
+drawn on top, since the physics/suspension system only supports exactly 2 wheel bodies.

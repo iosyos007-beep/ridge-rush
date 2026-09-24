@@ -46,16 +46,16 @@ Goal: a single stage, single vehicle, drivable end-to-end, playable via `npm run
 - [x] Floating text popups ("Back Flip! +500") + bonus coins; landing on head cancels bonus.
 
 ## Phase 3 — Progression & economy
-- [ ] `GarageScene`: vehicle list (lock state, price, stat bars), idle preview on flat ground.
-- [ ] `config/upgrades.ts`: Engine / Suspension / Tires / 4WD-Traction + one vehicle-specific
+- [x] `GarageScene`: vehicle list (lock state, price, stat bars), idle preview on flat ground.
+- [x] `config/upgrades.ts`: Engine / Suspension / Tires / 4WD-Traction + one vehicle-specific
       upgrade, 10 levels each, exponential cost curve, physics param modifiers.
-- [ ] `config/vehicles.ts`: 8 original vehicles (Starter Jeep, Dirt Bike, Pickup Truck, Rally
+- [x] `config/vehicles.ts`: 8 original vehicles (Starter Jeep, Dirt Bike, Pickup Truck, Rally
       Car, Monster Truck, Tractor, Hover-ish Buggy, Crab Crawler).
-- [ ] `config/stages.ts`: 6 original stages (Green Hills, Desert Dunes, Frozen Peaks, Night
+- [x] `config/stages.ts`: 6 original stages (Green Hills, Desert Dunes, Frozen Peaks, Night
       Forest, Scrapyard, Lunar Base) with unique terrain params/colors/friction/hazards,
       bought with coins.
-- [ ] `StageSelectScene`, checkpoints/milestones (coin bonus + partial refuel every N meters).
-- [ ] Personal-best distance per stage per vehicle. Economy balance in one config file.
+- [x] `StageSelectScene`, checkpoints/milestones (coin bonus + partial refuel every N meters).
+- [x] Personal-best distance per stage per vehicle. Economy balance in one config file.
 
 ## Phase 4 — Retention features
 - [ ] `config/dailyChallenges.ts` + `ChallengeManager`: 3 daily challenges from a date seed.

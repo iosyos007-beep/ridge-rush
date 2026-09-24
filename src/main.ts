@@ -1,6 +1,8 @@
 import Phaser from "phaser";
 import { BootScene } from "./scenes/BootScene.ts";
 import { MenuScene } from "./scenes/MenuScene.ts";
+import { GarageScene } from "./scenes/GarageScene.ts";
+import { StageSelectScene } from "./scenes/StageSelectScene.ts";
 import { GameScene } from "./scenes/GameScene.ts";
 import { HUDScene } from "./scenes/HUDScene.ts";
 import { ResultsScene } from "./scenes/ResultsScene.ts";
@@ -22,7 +24,7 @@ const config: Phaser.Types.Core.GameConfig = {
       debug: false,
     },
   },
-  scene: [BootScene, MenuScene, GameScene, HUDScene, ResultsScene],
+  scene: [BootScene, MenuScene, GarageScene, StageSelectScene, GameScene, HUDScene, ResultsScene],
 };
 
 const game = new Phaser.Game(config);

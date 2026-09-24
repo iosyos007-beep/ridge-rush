@@ -2,11 +2,14 @@ import Phaser from "phaser";
 import { getVehicleById } from "../config/vehicles.ts";
 import { getStageById } from "../config/stages.ts";
 import { PIXELS_PER_METER, CHECKPOINT_BALANCE } from "../config/balance.ts";
+import { getEffectiveVehicleConfig } from "../config/upgrades.ts";
+import { SaveManager } from "../systems/SaveManager.ts";
 import { createVehicle } from "../systems/VehicleFactory.ts";
 import { TerrainGenerator } from "../systems/TerrainGenerator.ts";
 import { CrashDetector } from "../systems/CrashDetector.ts";
 import { FuelSystem } from "../systems/FuelSystem.ts";
 import { CoinSystem } from "../systems/CoinSystem.ts";
+import { ObstacleSystem } from "../systems/ObstacleSystem.ts";
 import { CameraController } from "../systems/CameraController.ts";
 import { ParallaxBackground } from "../systems/ParallaxBackground.ts";
 import { TrickDetector, type TrickEvent } from "../systems/TrickDetector.ts";
@@ -19,6 +22,8 @@ export interface GameSceneData {
 }
 
 export interface RunResults {
+  vehicleId: string;
+  stageId: string;
   distanceMeters: number;
   coinsCollected: number;
   trickBonusCoins: number;
@@ -34,10 +39,12 @@ export class GameScene extends Phaser.Scene {
   private terrain!: TerrainGenerator;
   private fuelSystem!: FuelSystem;
   private coinSystem!: CoinSystem;
+  private obstacleSystem!: ObstacleSystem;
   private cameraController!: CameraController;
   private parallax!: ParallaxBackground;
   private trickDetector!: TrickDetector;
   private trickBonusCoins = 0;
+  private headlightCone?: Phaser.GameObjects.Graphics;
 
   private startX = 0;
   private distanceMeters = 0;
@@ -70,7 +77,8 @@ export class GameScene extends Phaser.Scene {
 
   create(): void {
     const stage = getStageById(this.stageId);
-    const vehicleConfig = getVehicleById(this.vehicleId);
+    const saveManager = new SaveManager();
+    const vehicleConfig = getEffectiveVehicleConfig(getVehicleById(this.vehicleId), saveManager);
 
     this.cameras.main.setBackgroundColor(stage.skyColorTop);
     this.matter.world.setGravity(0, stage.gravityScale);
@@ -82,13 +90,19 @@ export class GameScene extends Phaser.Scene {
     this.terrain.primeAround(this.startX);
 
     const spawnY = -this.terrain.heightAt(this.startX) - 120;
-    this.vehicle = createVehicle(this, this.vehicleId, this.startX, spawnY);
+    this.vehicle = createVehicle(this, vehicleConfig, this.startX, spawnY);
 
     this.fuelSystem = new FuelSystem(this, this.terrain, vehicleConfig.fuelCapacity);
     this.coinSystem = new CoinSystem(this, this.terrain);
+    this.obstacleSystem = new ObstacleSystem(this, this.terrain, stage);
     this.cameraController = new CameraController(this.cameras.main, this.vehicle);
     new CrashDetector(this, this.vehicle, () => this.endRun("crashed"));
     this.trickDetector = new TrickDetector(this.vehicle, (event) => this.onTrick(event));
+
+    if (stage.hasHeadlights) {
+      this.headlightCone = this.add.graphics();
+      this.headlightCone.setDepth(9);
+    }
 
     if (this.input.keyboard) {
       this.cursors = this.input.keyboard.createCursorKeys();
@@ -110,6 +124,8 @@ export class GameScene extends Phaser.Scene {
 
     this.vehicle.applyInput({ gas, brake });
     this.vehicle.render();
+    this.obstacleSystem.render();
+    this.drawHeadlightCone();
     this.trickDetector.update(deltaSeconds);
 
     this.distanceMeters = Math.max(
@@ -131,6 +147,8 @@ export class GameScene extends Phaser.Scene {
     const worldRight = camera.scrollX + camera.width / camera.zoom;
     this.fuelSystem.update(this.distanceMeters, worldRight);
     this.coinSystem.update(this.distanceMeters, worldRight);
+    this.obstacleSystem.update(this.distanceMeters, worldRight);
+    this.obstacleSystem.pruneBehind(camera.scrollX - 200);
 
     this.terrain.update(camera.scrollX - 200, worldRight);
 
@@ -151,7 +169,38 @@ export class GameScene extends Phaser.Scene {
     if (this.distanceMeters >= this.nextCheckpointDistance) {
       this.nextCheckpointDistance += CHECKPOINT_BALANCE.everyMeters;
       this.fuelSystem.refill(CHECKPOINT_BALANCE.fuelBonusUnits);
+      this.coinSystem.addBonusCoins(CHECKPOINT_BALANCE.coinBonus);
+      showFloatingText(
+        this,
+        this.vehicle.chassis.position.x,
+        this.vehicle.chassis.position.y - 60,
+        `Checkpoint! +${CHECKPOINT_BALANCE.coinBonus}`,
+      );
     }
+  }
+
+  /** Draws a soft cone of light in front of the vehicle for stages marked `hasHeadlights`
+   * (Night Forest), since the sky/ground are otherwise too dark to see obstacles by. */
+  private drawHeadlightCone(): void {
+    if (!this.headlightCone) return;
+    const g = this.headlightCone;
+    g.clear();
+
+    const { x, y } = this.vehicle.chassis.position;
+    const facing = this.vehicle.chassis.velocity.x >= -0.05 ? 1 : -1;
+    const reach = 420;
+    const halfSpread = 90;
+
+    g.save();
+    g.translateCanvas(x, y);
+    g.fillStyle(0xfff2c4, 0.16);
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.lineTo(facing * reach, -halfSpread);
+    g.lineTo(facing * reach, halfSpread);
+    g.closePath();
+    g.fillPath();
+    g.restore();
   }
 
   private onTrick(event: TrickEvent): void {
@@ -182,6 +231,8 @@ export class GameScene extends Phaser.Scene {
     this.runEnded = true;
 
     const results: RunResults = {
+      vehicleId: this.vehicleId,
+      stageId: this.stageId,
       distanceMeters: Math.round(this.distanceMeters),
       coinsCollected: this.coinSystem.collectedTotal,
       trickBonusCoins: this.trickBonusCoins,
@@ -204,6 +255,9 @@ export class GameScene extends Phaser.Scene {
     this.terrain?.destroy();
     this.fuelSystem?.destroy();
     this.coinSystem?.destroy();
+    this.obstacleSystem?.destroy();
     this.parallax?.destroy();
+    this.headlightCone?.destroy();
   }
 }
+

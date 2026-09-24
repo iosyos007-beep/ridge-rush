@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import type { VehicleConfig } from "../config/vehicles.ts";
+import type { VehicleConfig, VehicleBodyStyle } from "../config/vehicles.ts";
 
 export const TERRAIN_LABEL = "terrain";
 export const WHEEL_LABEL = "wheel";
@@ -278,7 +278,7 @@ export class Vehicle {
 
   private drawChassis(g: Phaser.GameObjects.Graphics): void {
     const { position, angle } = this.chassis;
-    const { chassisWidth: w, chassisHeight: h, color, accentColor } = this.config;
+    const { chassisWidth: w, chassisHeight: h, color, accentColor, bodyStyle } = this.config;
     const outline = 0x1a1a1a;
     const outlineWidth = 4;
 
@@ -301,15 +301,7 @@ export class Vehicle {
     g.fillStyle(accentColor, 1);
     g.fillRoundedRect(-w / 2, h * 0.18, w, h * 0.32, 8);
 
-    // Open-top cab: windshield strut + roll bar, evoking the reference's open jeep look.
-    const cabX = -w * 0.08;
-    const cabTopY = -h / 2 - 22;
-    g.lineStyle(outlineWidth, outline, 1);
-    g.lineBetween(cabX - w * 0.22, -h / 2 + 2, cabX - w * 0.16, cabTopY);
-    g.lineBetween(cabX + w * 0.3, -h / 2 + 2, cabX + w * 0.26, cabTopY);
-    g.lineBetween(cabX - w * 0.16, cabTopY, cabX + w * 0.26, cabTopY);
-    g.fillStyle(0x9fd8ff, 0.85);
-    g.fillRoundedRect(cabX - w * 0.12, -h / 2 - 16, w * 0.3, 16, 3);
+    this.drawBodyTopper(g, w, h, outline, accentColor, bodyStyle);
 
     // Headlight + tail light dots for a friendly, readable silhouette.
     g.fillStyle(0xfff2a8, 1);
@@ -320,6 +312,120 @@ export class Vehicle {
     g.fillCircle(-w / 2 - 2, -h * 0.02, 4);
 
     g.restore();
+  }
+
+  /** Draws the roof/cab-level silhouette detail that makes each `VehicleBodyStyle` read as
+   * a distinct vehicle, on top of the shared bumper/body/stripe base drawn by
+   * `drawChassis`. */
+  private drawBodyTopper(
+    g: Phaser.GameObjects.Graphics,
+    w: number,
+    h: number,
+    outline: number,
+    accentColor: number,
+    bodyStyle: VehicleBodyStyle,
+  ): void {
+    const outlineWidth = 4;
+
+    switch (bodyStyle) {
+      case "bike": {
+        // No cab: a handlebar stalk + a small saddle instead.
+        const barX = w * 0.22;
+        g.lineStyle(outlineWidth, outline, 1);
+        g.lineBetween(barX, -h / 2 + 2, barX + 6, -h / 2 - 24);
+        g.lineBetween(barX - 14, -h / 2 - 22, barX + 20, -h / 2 - 22);
+        g.fillStyle(0x2a2a2a, 1);
+        g.fillRoundedRect(-w * 0.18, -h / 2 - 10, w * 0.3, 10, 4);
+        break;
+      }
+      case "truck": {
+        // Cab up front + an open flatbed toward the rear.
+        const cabTopY = -h / 2 - 26;
+        g.lineStyle(outlineWidth, outline, 1);
+        g.lineBetween(w * 0.06, -h / 2 + 2, w * 0.1, cabTopY);
+        g.lineBetween(w * 0.42, -h / 2 + 2, w * 0.38, cabTopY);
+        g.lineBetween(w * 0.1, cabTopY, w * 0.38, cabTopY);
+        g.fillStyle(0x9fd8ff, 0.85);
+        g.fillRoundedRect(w * 0.12, -h / 2 - 20, w * 0.24, 20, 3);
+        g.fillStyle(outline, 1);
+        g.fillRoundedRect(-w * 0.46, -h / 2 - 6, w * 0.4, 8, 2);
+        break;
+      }
+      case "rally": {
+        // Low, sleek roofline + a rear wing.
+        const cabTopY = -h / 2 - 14;
+        g.lineStyle(outlineWidth, outline, 1);
+        g.lineBetween(-w * 0.24, -h / 2 + 2, -w * 0.1, cabTopY);
+        g.lineBetween(w * 0.18, -h / 2 + 2, w * 0.12, cabTopY);
+        g.lineBetween(-w * 0.1, cabTopY, w * 0.12, cabTopY);
+        g.fillStyle(0x9fd8ff, 0.85);
+        g.fillRoundedRect(-w * 0.08, -h / 2 - 10, w * 0.2, 10, 2);
+        g.fillStyle(accentColor, 1);
+        g.fillRect(-w / 2 - 4, -h / 2 - 16, 8, 18);
+        g.fillRect(-w / 2 - 8, -h / 2 - 16, w * 0.24, 5);
+        break;
+      }
+      case "monster": {
+        // Tall roll cage arching over the cab.
+        g.lineStyle(outlineWidth + 1, outline, 1);
+        g.beginPath();
+        g.arc(-w * 0.04, -h / 2, w * 0.32, Math.PI, 0, false);
+        g.strokePath();
+        g.lineBetween(-w * 0.36, -h / 2, -w * 0.36, -h / 2 + 6);
+        g.lineBetween(w * 0.28, -h / 2, w * 0.28, -h / 2 + 6);
+        break;
+      }
+      case "tractor": {
+        // Tall narrow stack exhaust pipe + a simple canopy bar.
+        g.fillStyle(0x2a2a2a, 1);
+        g.fillRoundedRect(-w * 0.3, -h / 2 - 34, 8, 34, 2);
+        g.fillStyle(0x1a1a1a, 1);
+        g.fillCircle(-w * 0.3 + 4, -h / 2 - 34, 5);
+        g.lineStyle(outlineWidth, outline, 1);
+        g.lineBetween(w * 0.1, -h / 2 + 2, w * 0.14, -h / 2 - 20);
+        g.lineBetween(w * 0.32, -h / 2 + 2, w * 0.28, -h / 2 - 20);
+        g.lineBetween(w * 0.14, -h / 2 - 20, w * 0.28, -h / 2 - 20);
+        break;
+      }
+      case "buggy": {
+        // Smooth bubble canopy, evoking a hover-pod feel.
+        g.fillStyle(0xffffff, 0.35);
+        g.fillEllipse(-w * 0.02, -h / 2 - 8, w * 0.42, 22);
+        g.lineStyle(2, outline, 0.8);
+        g.strokeEllipse(-w * 0.02, -h / 2 - 8, w * 0.42, 22);
+        break;
+      }
+      case "crab": {
+        // Decorative extra "legs": short diagonal struts along the body, on top of the
+        // two functional wheels, hinting at a six-legged crawler.
+        g.lineStyle(6, outline, 1);
+        for (const t of [-0.3, 0, 0.3]) {
+          const legX = w * t;
+          g.lineBetween(legX, h * 0.1, legX - 10, h * 0.5);
+          g.lineBetween(legX, h * 0.1, legX + 10, h * 0.5);
+        }
+        g.lineStyle(3, accentColor, 1);
+        for (const t of [-0.3, 0, 0.3]) {
+          const legX = w * t;
+          g.lineBetween(legX, h * 0.1, legX - 10, h * 0.5);
+          g.lineBetween(legX, h * 0.1, legX + 10, h * 0.5);
+        }
+        break;
+      }
+      case "jeep":
+      default: {
+        // Open-top cab: windshield strut + roll bar (the original Starter Jeep look).
+        const cabX = -w * 0.08;
+        const cabTopY = -h / 2 - 22;
+        g.lineStyle(outlineWidth, outline, 1);
+        g.lineBetween(cabX - w * 0.22, -h / 2 + 2, cabX - w * 0.16, cabTopY);
+        g.lineBetween(cabX + w * 0.3, -h / 2 + 2, cabX + w * 0.26, cabTopY);
+        g.lineBetween(cabX - w * 0.16, cabTopY, cabX + w * 0.26, cabTopY);
+        g.fillStyle(0x9fd8ff, 0.85);
+        g.fillRoundedRect(cabX - w * 0.12, -h / 2 - 16, w * 0.3, 16, 3);
+        break;
+      }
+    }
   }
 
   private drawWheel(g: Phaser.GameObjects.Graphics, wheel: MatterJS.BodyType): void {
