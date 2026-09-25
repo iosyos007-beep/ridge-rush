@@ -88,14 +88,13 @@ describe("applyRunToChallenges", () => {
     const challenges = getOrCreateDailyChallenges(saveManager);
     const target = challenges[0]!;
 
-    // Build a run guaranteed to satisfy this specific challenge, whatever metric it has.
     const run = baseRun({
       stageId: target.stageId ?? "green-hills",
       vehicleId: target.vehicleId ?? "starter-jeep",
-      distanceMeters: target.target + 100,
-      coinsCollected: target.target + 100,
-      flips: target.target + 100,
-      wheelies: target.target + 100,
+      distanceMeters: target.metric === "distanceInStage" || target.metric === "distanceWithVehicle" ? target.target + 100 : 0,
+      coinsCollected: target.metric === "coinsToday" ? target.target + 100 : 0,
+      flips: target.metric === "flipsInRun" ? target.target + 1 : 0,
+      wheelies: target.metric === "wheeliesInRun" ? target.target + 1 : 0,
     });
 
     const firstResult = applyRunToChallenges(saveManager, run).find((r) => r.challenge.id === target.id);

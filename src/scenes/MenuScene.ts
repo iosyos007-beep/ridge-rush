@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { getAudioManager } from "../systems/AudioManager.ts";
 
 /** Simple title screen with a single Play button, routing into the Garage to pick a
  * vehicle before choosing a stage. */
@@ -46,11 +47,15 @@ export class MenuScene extends Phaser.Scene {
 
     playButton.on("pointerover", () => playButton.setFillStyle(0xf07a52));
     playButton.on("pointerout", () => playButton.setFillStyle(0xe0663f));
-    playButton.on("pointerdown", () => this.scene.start("GarageScene"));
+    playButton.on("pointerdown", () => {
+      getAudioManager().playUiClick();
+      this.scene.start("GarageScene");
+    });
 
     const navY = height * 0.62 + 62;
     this.createNavButton(width / 2 - 118, navY, "ACHIEVEMENTS", () => this.scene.start("AchievementsScene"));
     this.createNavButton(width / 2 + 118, navY, "DAILY CHALLENGES", () => this.scene.start("DailyChallengesScene"));
+    this.createNavButton(width / 2, navY + 56, "SETTINGS", () => this.scene.start("SettingsScene"));
 
     this.add
       .text(width / 2, height * 0.78, "Right/D or GAS button = accelerate | Left/A or BRAKE = reverse", {
@@ -75,6 +80,9 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5);
     button.on("pointerover", () => button.setFillStyle(0x38495c));
     button.on("pointerout", () => button.setFillStyle(0x2b3a4a));
-    button.on("pointerdown", onClick);
+    button.on("pointerdown", () => {
+      getAudioManager().playUiClick();
+      onClick();
+    });
   }
 }

@@ -5,6 +5,7 @@ import { SaveManager } from "../systems/SaveManager.ts";
 import { SaveManagerEconomyService } from "../systems/EconomyService.ts";
 import { checkAchievements } from "../systems/AchievementManager.ts";
 import { showAchievementToasts } from "../ui/AchievementToast.ts";
+import { getAudioManager } from "../systems/AudioManager.ts";
 
 /** Lets the player choose an unlocked stage (or buy a locked one) for the currently
  * selected vehicle, showing their personal best distance for each stage+vehicle pair. */
@@ -113,6 +114,7 @@ export class StageSelectScene extends Phaser.Scene {
         })
         .setOrigin(0.5);
       goButton.on("pointerdown", () => {
+        getAudioManager().playUiClick();
         this.scene.start("GameScene", { vehicleId: this.vehicleId, stageId: stage.id });
       });
     } else {
@@ -130,6 +132,7 @@ export class StageSelectScene extends Phaser.Scene {
         })
         .setOrigin(0.5);
       buyButton.on("pointerdown", () => {
+        getAudioManager().playUiClick();
         if (!this.economy.spendCoins(stage.price)) return;
         this.saveManager.unlockStage(stage.id);
         this.buildUI();
@@ -166,6 +169,9 @@ export class StageSelectScene extends Phaser.Scene {
         fontStyle: "bold",
       })
       .setOrigin(0.5);
-    button.on("pointerdown", onClick);
+    button.on("pointerdown", () => {
+      getAudioManager().playUiClick();
+      onClick();
+    });
   }
 }

@@ -8,6 +8,8 @@ import { HUDScene } from "./scenes/HUDScene.ts";
 import { ResultsScene } from "./scenes/ResultsScene.ts";
 import { AchievementsScene } from "./scenes/AchievementsScene.ts";
 import { DailyChallengesScene } from "./scenes/DailyChallengesScene.ts";
+import { SettingsScene } from "./scenes/SettingsScene.ts";
+import { PauseMenuScene } from "./scenes/PauseMenuScene.ts";
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -36,10 +38,20 @@ const config: Phaser.Types.Core.GameConfig = {
     ResultsScene,
     AchievementsScene,
     DailyChallengesScene,
+    SettingsScene,
+    PauseMenuScene,
   ],
 };
 
 const game = new Phaser.Game(config);
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    void navigator.serviceWorker.register("./sw.js").catch(() => {
+      // Offline install is optional and should fail gracefully in unsupported contexts.
+    });
+  });
+}
 
 // Auto-pause when the tab loses focus (spec requirement); resumed manually via the pause
 // button rather than automatically, to avoid surprising the player.

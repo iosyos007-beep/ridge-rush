@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { ACHIEVEMENTS } from "../config/achievements.ts";
 import { SaveManager } from "../systems/SaveManager.ts";
+import { getAudioManager } from "../systems/AudioManager.ts";
 
 /** Read-only list of all achievements, showing unlocked/locked state and coin rewards.
  * Scrollable so it works on any viewport height, reusing the same masked-container +
@@ -58,7 +59,10 @@ export class AchievementsScene extends Phaser.Scene {
         fontStyle: "bold",
       })
       .setOrigin(0.5);
-    backButton.on("pointerdown", () => this.scene.start("MenuScene"));
+    backButton.on("pointerdown", () => {
+      getAudioManager().playUiClick();
+      this.scene.start("MenuScene");
+    });
 
     const listTop = backY;
     const listHeight = height - backY - 70;

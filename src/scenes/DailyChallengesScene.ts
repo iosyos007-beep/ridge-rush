@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { getOrCreateDailyChallenges } from "../systems/ChallengeManager.ts";
 import { SaveManager } from "../systems/SaveManager.ts";
+import { getAudioManager } from "../systems/AudioManager.ts";
 
 /** Shows today's 3 deterministically-generated daily challenges with progress bars and
  * coin rewards. Challenges reset (and regenerate) automatically at local midnight. */
@@ -98,6 +99,9 @@ export class DailyChallengesScene extends Phaser.Scene {
         fontStyle: "bold",
       })
       .setOrigin(0.5);
-    backButton.on("pointerdown", () => this.scene.start("MenuScene"));
+    backButton.on("pointerdown", () => {
+      getAudioManager().playUiClick();
+      this.scene.start("MenuScene");
+    });
   }
 }

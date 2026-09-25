@@ -5,17 +5,17 @@
 
 export const FUEL_BALANCE = {
   /** Fuel units drained per second while holding gas. */
-  drainPerSecondGas: 6,
+  drainPerSecondGas: 1.3,
   /** Fuel units drained per second at idle (engine running, no gas). */
-  drainPerSecondIdle: 0.8,
+  drainPerSecondIdle: 0.18,
   /** Fuel units restored by a single fuel can pickup. */
-  refillPerCan: 40,
+  refillPerCan: 70,
   /** Distance (m) before the first fuel can spawns. */
-  firstCanDistance: 350,
+  firstCanDistance: 120,
   /** Base distance (m) between fuel can spawns. */
-  baseCanInterval: 420,
+  baseCanInterval: 190,
   /** Extra distance added to the interval per can already spawned (increasing gaps). */
-  canIntervalGrowth: 35,
+  canIntervalGrowth: 12,
   /** Seconds the vehicle must be stationary with an empty tank before the run ends. */
   stoppedGraceSeconds: 3,
   /** Speed (px/s) below which the vehicle counts as "stopped" for the fuel-out check. */
@@ -57,6 +57,15 @@ export const TRICK_BALANCE = {
   wheelieCoins: 150,
   /** Minimum forward speed (px/s) required for wheelie detection, so idling doesn't count. */
   wheelieMinSpeed: 20,
+} as const;
+
+/** General hard-landing feedback (camera shake + spark particles) applied to EVERY vehicle,
+ * independent of the optional cosmetic breakable-part system below. */
+export const HARD_LANDING_BALANCE = {
+  /** Downward chassis speed above which a landing counts as "hard" for shake/sparks. Lower
+   * than `BREAKABLE_PART_BALANCE.hardLandingVerticalSpeed` so the feedback feels responsive
+   * on vehicles that have no breakable part at all. */
+  minVerticalSpeed: 9,
 } as const;
 
 /** Optional cosmetic breakable parts (spoiler/bumper/tailgate), enabled per-vehicle via

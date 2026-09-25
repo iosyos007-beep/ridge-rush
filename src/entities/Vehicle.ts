@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import type { VehicleConfig, VehicleBodyStyle } from "../config/vehicles.ts";
-import { BREAKABLE_PART_BALANCE } from "../config/balance.ts";
+import { BREAKABLE_PART_BALANCE, HARD_LANDING_BALANCE } from "../config/balance.ts";
 
 export const TERRAIN_LABEL = "terrain";
 export const WHEEL_LABEL = "wheel";
@@ -27,6 +27,10 @@ export class Vehicle {
   readonly head: MatterJS.BodyType;
   readonly torso: MatterJS.BodyType;
   readonly config: VehicleConfig;
+
+  /** Optional callback fired for ANY vehicle (not just breakable-part-enabled ones) on a
+   * hard landing, used by `GameScene` to trigger camera shake + spark particles. */
+  onHardLanding?: (impactSpeed: number) => void;
 
   private readonly scene: Phaser.Scene;
   private readonly graphics: Phaser.GameObjects.Graphics;
@@ -92,15 +96,15 @@ export class Vehicle {
     // Both share the vehicle's collision group so they never collide with the chassis/wheels.
     // Anchor points and rest lengths are derived so the constraints start at (approximately)
     // their rest length instead of snapping violently into place on the first physics step.
-    const torsoHalfHeight = 13;
+    const torsoHalfHeight = 14;
     const headRadius = 11;
     const hipRestLength = 4;
-    const neckRestLength = 3;
+    const neckRestLength = 4;
 
     const chassisTopY = y - config.chassisHeight / 2;
-    const torsoY = chassisTopY - torsoHalfHeight - hipRestLength;
-    const torsoTopY = torsoY - torsoHalfHeight;
-    const headY = torsoTopY - headRadius - neckRestLength;
+    const torsoY = chassisTopY - 22;
+    const torsoTopY = torsoY - torsoHalfHeight - 10;
+    const headY = torsoTopY - headRadius - neckRestLength - 6;
 
     this.torso = matter.bodies.rectangle(x, torsoY, 16, torsoHalfHeight * 2, {
       collisionFilter,
@@ -157,13 +161,13 @@ export class Vehicle {
       damping: 0.2,
     });
 
-    const torsoJoint = matter.add.constraint(this.chassis, this.torso, hipRestLength, 0.6, {
-      pointA: { x: 0, y: -config.chassisHeight / 2 },
-      pointB: { x: 0, y: torsoHalfHeight },
+    const torsoJoint = matter.add.constraint(this.chassis, this.torso, hipRestLength, 0.7, {
+      pointA: { x: 0, y: -config.chassisHeight / 2 - 2 },
+      pointB: { x: 0, y: torsoHalfHeight - 1 },
     });
-    const neckJoint = matter.add.constraint(this.torso, this.head, neckRestLength, 0.8, {
-      pointA: { x: 0, y: -torsoHalfHeight },
-      pointB: { x: 0, y: headRadius },
+    const neckJoint = matter.add.constraint(this.torso, this.head, neckRestLength, 0.9, {
+      pointA: { x: 0, y: -torsoHalfHeight - 2 },
+      pointB: { x: 0, y: headRadius + 2 },
     });
 
     matter.world.add([
@@ -305,11 +309,33 @@ export class Vehicle {
     return current + Math.sign(diff) * maxDelta;
   }
 
+  /** Keeps the driver visually upright and anchored to the chassis, rather than letting the
+   * ragdoll-lite torso/head drift, lean, and point downward while the vehicle pitches. */
+  private syncDriverPose(): void {
+    const Body = this.scene.matter.body;
+    const torsoLocalOffsetY = -this.config.chassisHeight * 0.72;
+    const headLocalOffsetY = -this.config.chassisHeight * 1.1;
+
+    Body.setPosition(this.torso, {
+      x: this.chassis.position.x,
+      y: this.chassis.position.y + torsoLocalOffsetY,
+    });
+    Body.setPosition(this.head, {
+      x: this.chassis.position.x,
+      y: this.chassis.position.y + headLocalOffsetY,
+    });
+    Body.setAngle(this.torso, this.chassis.angle);
+    Body.setAngle(this.head, this.chassis.angle);
+    Body.setVelocity(this.torso, this.chassis.velocity);
+    Body.setVelocity(this.head, this.chassis.velocity);
+  }
+
   /** Syncs the procedurally-drawn graphics to the current physics body transforms. */
   render(): void {
     const g = this.graphics;
     g.clear();
 
+    this.syncDriverPose();
     this.drawWheel(g, this.rearWheel);
     this.drawWheel(g, this.frontWheel);
     this.drawChassis(g);
@@ -331,6 +357,7 @@ export class Vehicle {
     }
     if (!this.wasGroundedForImpact) {
       const impactSpeed = Math.abs(this.chassis.velocity.y);
+      if (impactSpeed >= HARD_LANDING_BALANCE.minVerticalSpeed) this.onHardLanding?.(impactSpeed);
       if (
         this.breakablePart &&
         !this.breakablePartDetached &&
@@ -576,26 +603,27 @@ export class Vehicle {
 
   private drawDriver(g: Phaser.GameObjects.Graphics): void {
     const outline = 0x1a1a1a;
+    const driverAngle = this.chassis.angle;
 
     g.save();
-    g.translateCanvas(this.torso.position.x, this.torso.position.y);
-    g.rotateCanvas(this.torso.angle);
+    g.translateCanvas(this.torso.position.x, this.torso.position.y + 4);
+    g.rotateCanvas(driverAngle);
     g.fillStyle(outline, 1);
-    g.fillRoundedRect(-9, -14, 18, 28, 5);
+    g.fillRoundedRect(-9, -15, 18, 30, 5);
     g.fillStyle(0x3a6fb0, 1);
-    g.fillRoundedRect(-8, -13, 16, 26, 4);
+    g.fillRoundedRect(-8, -14, 16, 28, 4);
     g.restore();
 
     g.save();
-    g.translateCanvas(this.head.position.x, this.head.position.y);
-    // Head with a simple cap peak, echoing the reference driver's flat cap.
+    g.translateCanvas(this.head.position.x, this.head.position.y - 2);
+    g.rotateCanvas(driverAngle);
     g.fillStyle(outline, 1);
     g.fillCircle(0, 0, 12);
     g.fillStyle(0xf1c27d, 1);
-    g.fillCircle(0, 1, 10.5);
+    g.fillCircle(0, 0, 10.5);
     g.fillStyle(0xc0392b, 1);
-    g.fillRoundedRect(-11, -11, 22, 7, 3);
-    g.fillRect(-2, -6, 15, 4);
+    g.fillRoundedRect(-11, -14, 22, 7, 3);
+    g.fillRect(-2, -8, 15, 4);
     g.restore();
   }
 

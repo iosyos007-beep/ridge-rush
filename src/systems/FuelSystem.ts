@@ -65,8 +65,8 @@ export class FuelSystem {
   /** Spawns fuel cans ahead of the camera as the vehicle progresses. */
   update(distanceMeters: number, cameraRightWorldX: number): void {
     if (distanceMeters < this.nextSpawnDistance) return;
-    const x = cameraRightWorldX + 300;
-    const y = -this.terrain.heightAt(x) - 40;
+    const x = cameraRightWorldX + 180;
+    const y = -this.terrain.heightAt(x) - 12;
     this.pickups.push(new Pickup(this.scene, "fuel", 0, x, y));
     this.cansSpawned += 1;
     this.nextSpawnDistance +=

@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { HEAD_LABEL, TERRAIN_LABEL, type Vehicle } from "../entities/Vehicle.ts";
 import { CRASH_BALANCE } from "../config/balance.ts";
+import { getAudioManager } from "./AudioManager.ts";
 
 /**
  * Watches Matter collision events for the driver's head touching terrain. On detection,
@@ -41,6 +42,7 @@ export class CrashDetector {
   private triggerCrash(): void {
     this.triggered = true;
     this.vehicle.markCrashed();
+    getAudioManager().playCrash();
     this.scene.matter.world.engine.timing.timeScale = CRASH_BALANCE.slowMotionTimeScale;
     this.scene.time.delayedCall(CRASH_BALANCE.slowMotionDurationMs, () => {
       this.scene.matter.world.engine.timing.timeScale = 1;

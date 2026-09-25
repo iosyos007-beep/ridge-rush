@@ -32,6 +32,8 @@ export interface SaveDataV1 {
   settings: {
     musicVolume: number;
     sfxVolume: number;
+    musicMuted: boolean;
+    sfxMuted: boolean;
     swapPedals: boolean;
     particlesEnabled: boolean;
   };
@@ -70,6 +72,8 @@ function createDefaultSave(): SaveDataV1 {
     settings: {
       musicVolume: 0.7,
       sfxVolume: 0.8,
+      musicMuted: false,
+      sfxMuted: false,
       swapPedals: false,
       particlesEnabled: true,
     },
@@ -122,6 +126,9 @@ function migrate(data: { version?: unknown }): SaveDataV1 {
   if (typeof loaded.dailyChallenge !== "object" || loaded.dailyChallenge === null) {
     loaded.dailyChallenge = { dateKey: "", progressById: {}, completedIds: [] };
   }
+  // Defensive backfill for saves written before Phase 5 mute toggles existed within v1.
+  if (typeof loaded.settings.musicMuted !== "boolean") loaded.settings.musicMuted = false;
+  if (typeof loaded.settings.sfxMuted !== "boolean") loaded.settings.sfxMuted = false;
   return loaded;
 }
 
@@ -215,6 +222,10 @@ export class SaveManager {
   updateSettings(partial: Partial<SaveDataV1["settings"]>): void {
     this.data.settings = { ...this.data.settings, ...partial };
     this.save();
+  }
+
+  getSettings(): Readonly<SaveDataV1["settings"]> {
+    return this.data.settings;
   }
 
   getSelectedVehicleId(): string {

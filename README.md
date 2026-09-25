@@ -30,8 +30,9 @@ npm run test      # run the Vitest unit test suite once
 | Gas (drive forward / air: nose up) | Right Arrow or `D` | Bottom-right pedal |
 | Brake (reverse / air: nose down) | Left Arrow or `A` | Bottom-left pedal |
 | Pause | `Esc` | Pause button (top-right) |
+| Debug overlay | `F1` | Toggle FPS/speed/fuel/stage data + `C` cheat for +10,000 coins |
 
-The game also auto-pauses when the browser tab loses focus.
+The game also auto-pauses when the browser tab loses focus and supports an installable offline build via the service worker + manifest.
 
 ## Project structure
 

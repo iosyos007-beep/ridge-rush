@@ -5,6 +5,7 @@ import { getVehicleById } from "../config/vehicles.ts";
 import { getStageById } from "../config/stages.ts";
 import { checkAchievements } from "../systems/AchievementManager.ts";
 import { applyRunToChallenges } from "../systems/ChallengeManager.ts";
+import { getAudioManager } from "../systems/AudioManager.ts";
 
 /** Shows run stats after a crash or out-of-fuel ending, with Retry/Garage/Stages buttons.
  * Records coins and best-distance (per stage+vehicle) to the SaveManager, plus (Phase 4)
@@ -109,6 +110,9 @@ export class ResultsScene extends Phaser.Scene {
         fontStyle: "bold",
       })
       .setOrigin(0.5);
-    button.on("pointerdown", onClick);
+    button.on("pointerdown", () => {
+      getAudioManager().playUiClick();
+      onClick();
+    });
   }
 }

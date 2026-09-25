@@ -14,6 +14,7 @@ import { checkAchievements } from "../systems/AchievementManager.ts";
 import { showAchievementToasts } from "../ui/AchievementToast.ts";
 import { createVehicle } from "../systems/VehicleFactory.ts";
 import type { Vehicle } from "../entities/Vehicle.ts";
+import { getAudioManager } from "../systems/AudioManager.ts";
 
 /** Rough "reasonable max" reference per stat, purely for normalizing the 0..1 stat bars
  * shown in the garage; picking a value comfortably above the highest vehicle+upgrades. */
@@ -392,6 +393,7 @@ export class GarageScene extends Phaser.Scene {
       .setOrigin(0.5);
     container.add([button, costText]);
     button.on("pointerdown", () => {
+      getAudioManager().playUiClick();
       if (!this.economy.spendCoins(cost)) return;
       this.saveManager.setUpgradeLevel(vehicle.id, upgrade.id, level + 1);
       this.buildUI();
@@ -441,6 +443,7 @@ export class GarageScene extends Phaser.Scene {
       }
 
       swatch.on("pointerdown", () => {
+        getAudioManager().playUiClick();
         if (!unlocked) {
           if (!this.economy.spendCoins(skin.price)) return;
           this.saveManager.unlockSkin(skin.id);
@@ -479,7 +482,10 @@ export class GarageScene extends Phaser.Scene {
     this.add
       .text(x, y, label, { fontFamily: "Arial, sans-serif", fontSize: "24px", color: "#ffffff" })
       .setOrigin(0.5);
-    button.on("pointerdown", onClick);
+    button.on("pointerdown", () => {
+      getAudioManager().playUiClick();
+      onClick();
+    });
   }
 
   private createButton(x: number, y: number, label: string, color: number, onClick: () => void): void {
@@ -492,7 +498,10 @@ export class GarageScene extends Phaser.Scene {
         fontStyle: "bold",
       })
       .setOrigin(0.5);
-    button.on("pointerdown", onClick);
+    button.on("pointerdown", () => {
+      getAudioManager().playUiClick();
+      onClick();
+    });
   }
 
   private createSmallButton(x: number, y: number, label: string, color: number, onClick: () => void): void {
@@ -505,7 +514,10 @@ export class GarageScene extends Phaser.Scene {
         fontStyle: "bold",
       })
       .setOrigin(0.5);
-    button.on("pointerdown", onClick);
+    button.on("pointerdown", () => {
+      getAudioManager().playUiClick();
+      onClick();
+    });
   }
 
   shutdown(): void {

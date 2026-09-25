@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import type { GameScene } from "./GameScene.ts";
+import { getAudioManager } from "../systems/AudioManager.ts";
 
 /** Renders the heads-up display (distance, fuel gauge with can icon, coin counter, pause
  * button) and the touch pedal buttons, running in parallel with `GameScene`. Reads run state
@@ -54,8 +55,8 @@ export class HUDScene extends Phaser.Scene {
       .setOrigin(0.5, 0)
       .setScrollFactor(0);
 
-    this.createPedal(width - 100, height - 90, "BRAKE", "brake");
-    this.createPedal(100, height - 90, "GAS", "gas");
+    this.createPedal(100, height - 90, "BRAKE", "brake");
+    this.createPedal(width - 100, height - 90, "GAS", "gas");
 
     this.drawPauseButton(width - 46, 26);
   }
@@ -99,7 +100,10 @@ export class HUDScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setScrollFactor(0);
-    button.on("pointerdown", () => this.togglePause());
+    button.on("pointerdown", () => {
+      getAudioManager().playUiClick();
+      this.togglePause();
+    });
   }
 
   private createPedal(x: number, y: number, label: string, kind: "gas" | "brake"): void {
@@ -152,12 +156,20 @@ export class HUDScene extends Phaser.Scene {
 
   private paused = false;
   private togglePause(): void {
-    this.paused = !this.paused;
     if (this.paused) {
-      this.scene.pause("GameScene");
-    } else {
       this.scene.resume("GameScene");
+      this.scene.stop("PauseMenuScene");
+      this.paused = false;
+      return;
     }
+
+    this.paused = true;
+    this.scene.pause("GameScene");
+    const snapshot = this.gameScene.getHudSnapshot();
+    this.scene.launch("PauseMenuScene", {
+      vehicleId: snapshot.vehicleId,
+      stageId: snapshot.stageId,
+    });
   }
 
   override update(): void {

@@ -21,24 +21,24 @@ export class CameraController {
     const speed = this.vehicle.speed;
     const facing = chassis.velocity.x >= 0 ? 1 : -1;
 
-    const targetLookAhead = Phaser.Math.Clamp(speed * 4, 0, 220) * facing;
-    this.lookAheadX = Phaser.Math.Linear(this.lookAheadX, targetLookAhead, deltaSeconds * 2);
+    const targetLookAhead = Phaser.Math.Clamp(speed * 2.4, 0, 180) * facing;
+    this.lookAheadX = Phaser.Math.Linear(this.lookAheadX, targetLookAhead, deltaSeconds * 3.5);
 
     const targetX = chassis.position.x + this.lookAheadX;
-    const targetY = chassis.position.y - 60;
+    const targetY = chassis.position.y - 90;
 
     this.camera.scrollX = Phaser.Math.Linear(
       this.camera.scrollX,
       targetX - this.camera.width / 2,
-      deltaSeconds * 3,
+      deltaSeconds * 5,
     );
     this.camera.scrollY = Phaser.Math.Linear(
       this.camera.scrollY,
       targetY - this.camera.height / 2,
-      deltaSeconds * 3,
+      deltaSeconds * 4.5,
     );
 
-    const targetZoom = Phaser.Math.Clamp(1 - speed / 600, 0.75, 1);
-    this.camera.zoom = Phaser.Math.Linear(this.camera.zoom, targetZoom, deltaSeconds * 2);
+    const targetZoom = Phaser.Math.Clamp(1.05 - speed / 850, 0.82, 1.05);
+    this.camera.zoom = Phaser.Math.Linear(this.camera.zoom, targetZoom, deltaSeconds * 2.5);
   }
 }

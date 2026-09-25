@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { getVehicleById } from "../config/vehicles.ts";
 import { getStageById } from "../config/stages.ts";
-import { PIXELS_PER_METER, CHECKPOINT_BALANCE } from "../config/balance.ts";
+import { PIXELS_PER_METER, CHECKPOINT_BALANCE, FUEL_BALANCE } from "../config/balance.ts";
 import { getEffectiveVehicleConfig } from "../config/upgrades.ts";
 import { SaveManager } from "../systems/SaveManager.ts";
 import { createVehicle } from "../systems/VehicleFactory.ts";
@@ -14,6 +14,8 @@ import { CameraController } from "../systems/CameraController.ts";
 import { ParallaxBackground } from "../systems/ParallaxBackground.ts";
 import { TrickDetector, type TrickEvent } from "../systems/TrickDetector.ts";
 import { showFloatingText } from "../ui/TrickPopup.ts";
+import { getAudioManager } from "../systems/AudioManager.ts";
+import { getParticleSystem, type ParticleSystem } from "../systems/ParticleSystem.ts";
 import type { Vehicle } from "../entities/Vehicle.ts";
 
 export interface GameSceneData {
@@ -45,10 +47,13 @@ export class GameScene extends Phaser.Scene {
   private cameraController!: CameraController;
   private parallax!: ParallaxBackground;
   private trickDetector!: TrickDetector;
+  private particles!: ParticleSystem;
   private trickBonusCoins = 0;
   private flipsThisRun = 0;
   private wheeliesThisRun = 0;
   private headlightCone?: Phaser.GameObjects.Graphics;
+  private debugOverlay?: Phaser.GameObjects.Text;
+  private debugEnabled = false;
 
   private startX = 0;
   private distanceMeters = 0;
@@ -58,6 +63,8 @@ export class GameScene extends Phaser.Scene {
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private keyA!: Phaser.Input.Keyboard.Key;
   private keyD!: Phaser.Input.Keyboard.Key;
+  private debugKey!: Phaser.Input.Keyboard.Key;
+  private coinCheatKey!: Phaser.Input.Keyboard.Key;
 
   /** Touch/HUD-driven input flags; HUDScene sets these directly via `scene.get("GameScene")`. */
   touchGas = false;
@@ -114,16 +121,50 @@ export class GameScene extends Phaser.Scene {
       this.cursors = this.input.keyboard.createCursorKeys();
       this.keyA = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
       this.keyD = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
+      this.debugKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F1);
+      this.coinCheatKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
     }
+
+    this.debugOverlay = this.add
+      .text(18, 18, "", {
+        fontFamily: "monospace",
+        fontSize: "14px",
+        color: "#ffffff",
+        backgroundColor: "#00000088",
+        padding: { x: 8, y: 6 },
+      })
+      .setScrollFactor(0)
+      .setDepth(100)
+      .setVisible(false);
+
+    this.particles = getParticleSystem(this, saveManager.getSettings().particlesEnabled, stage.groundColor);
+    this.vehicle.onHardLanding = (impactSpeed) => this.onHardLanding(impactSpeed);
+
+    const audio = getAudioManager();
+    audio.loadSettings(saveManager);
+    audio.unlock();
+    audio.startEngine();
+    audio.playMusicForStage(this.stageId);
 
     this.scene.launch("HUDScene", { gameSceneKey: "GameScene" });
 
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => this.cleanup());
   }
 
+
   override update(_time: number, deltaMs: number): void {
     if (this.runEnded) return;
     const deltaSeconds = deltaMs / 1000;
+
+    if (this.input.keyboard && Phaser.Input.Keyboard.JustDown(this.debugKey)) {
+      this.debugEnabled = !this.debugEnabled;
+      if (this.debugOverlay) this.debugOverlay.setVisible(this.debugEnabled);
+    }
+    if (this.debugEnabled && this.input.keyboard && Phaser.Input.Keyboard.JustDown(this.coinCheatKey)) {
+      const saveManager = new SaveManager();
+      saveManager.addCoins(10000);
+      this.coinSystem.addBonusCoins(10000);
+    }
 
     const gas = Boolean(this.cursors?.right.isDown) || Boolean(this.keyD?.isDown) || this.touchGas;
     const brake = Boolean(this.cursors?.left.isDown) || Boolean(this.keyA?.isDown) || this.touchBrake;
@@ -133,6 +174,7 @@ export class GameScene extends Phaser.Scene {
     this.obstacleSystem.render();
     this.drawHeadlightCone();
     this.trickDetector.update(deltaSeconds);
+    this.updateEngineAudioAndParticles(gas);
 
     this.distanceMeters = Math.max(
       this.distanceMeters,
@@ -158,24 +200,29 @@ export class GameScene extends Phaser.Scene {
 
     this.terrain.update(camera.scrollX - 200, worldRight);
 
-    const collectRadius = 46;
+    const collectRadius = 92;
     const collectedFuel = this.fuelSystem.collectOverlapping(
       this.vehicle.chassis.position.x,
       this.vehicle.chassis.position.y,
       collectRadius,
     );
-    for (const _pickup of collectedFuel) this.fuelSystem.refill(40);
+    for (const _pickup of collectedFuel) {
+      this.fuelSystem.refill(FUEL_BALANCE.refillPerCan);
+      getAudioManager().playFuel();
+    }
 
-    this.coinSystem.collectOverlapping(
+    const collectedCoins = this.coinSystem.collectOverlapping(
       this.vehicle.chassis.position.x,
       this.vehicle.chassis.position.y,
       collectRadius,
     );
+    if (collectedCoins > 0) getAudioManager().playCoin();
 
     if (this.distanceMeters >= this.nextCheckpointDistance) {
       this.nextCheckpointDistance += CHECKPOINT_BALANCE.everyMeters;
       this.fuelSystem.refill(CHECKPOINT_BALANCE.fuelBonusUnits);
       this.coinSystem.addBonusCoins(CHECKPOINT_BALANCE.coinBonus);
+      getAudioManager().playCoin();
       showFloatingText(
         this,
         this.vehicle.chassis.position.x,
@@ -183,6 +230,60 @@ export class GameScene extends Phaser.Scene {
         `Checkpoint! +${CHECKPOINT_BALANCE.coinBonus}`,
       );
     }
+
+    this.updateDebugOverlay();
+  }
+
+  /** Feeds the engine's continuous synthesized pitch and the wheel-dust/exhaust particle
+   * emitters from the vehicle's current physics state; called once per frame. */
+  private updateEngineAudioAndParticles(gas: boolean): void {
+    const maxWheelSpeed = this.vehicle.config.maxWheelSpeed || 1;
+    const wheelSpeedRatio = Math.min(
+      1,
+      Math.max(Math.abs(this.vehicle.rearWheel.angularVelocity), Math.abs(this.vehicle.frontWheel.angularVelocity)) /
+        maxWheelSpeed,
+    );
+    getAudioManager().updateEngine(wheelSpeedRatio);
+
+    const moving = this.vehicle.speed > 2;
+    this.particles.setWheelDust(
+      this.vehicle.isGrounded && moving,
+      this.vehicle.rearWheel.position.x,
+      this.vehicle.rearWheel.position.y,
+    );
+
+    const facing = this.vehicle.chassis.velocity.x >= -0.05 ? -1 : 1;
+    this.particles.setExhaust(
+      gas,
+      this.vehicle.chassis.position.x + facing * 30,
+      this.vehicle.chassis.position.y,
+    );
+  }
+
+  private updateDebugOverlay(): void {
+    if (!this.debugEnabled || !this.debugOverlay) return;
+
+    const speedMps = Math.abs(this.vehicle?.chassis?.speed ?? 0) * 0.2;
+    const fuelPct = this.fuelSystem?.ratio ?? 0;
+    const seed = getStageById(this.stageId).seed;
+    const fps = this.game.loop.actualFps.toFixed(0);
+
+    this.debugOverlay.setText([
+      `FPS: ${fps}`,
+      `Speed: ${speedMps.toFixed(1)} m/s`,
+      `Fuel: ${(fuelPct * 100).toFixed(0)}%`,
+      `Stage: ${this.stageId}`,
+      `Seed: ${seed}`,
+      `C = +10,000 coins`,
+    ].join("\n"));
+  }
+
+  /** Triggers camera shake and a spark burst on any vehicle's hard landing (not just ones
+   * with a breakable part attached — see `Vehicle.onHardLanding`). */
+  private onHardLanding(impactSpeed: number): void {
+    const intensity = Phaser.Math.Clamp(impactSpeed / 40, 0.002, 0.012);
+    this.cameras.main.shake(160, intensity);
+    this.particles.burstSparks(this.vehicle.chassis.position.x, this.vehicle.chassis.position.y + 20);
   }
 
   /** Draws a soft cone of light in front of the vehicle for stages marked `hasHeadlights`
@@ -226,11 +327,15 @@ export class GameScene extends Phaser.Scene {
     distanceMeters: number;
     fuelRatio: number;
     coins: number;
+    vehicleId: string;
+    stageId: string;
   } {
     return {
       distanceMeters: this.distanceMeters,
       fuelRatio: this.fuelSystem?.ratio ?? 1,
       coins: this.coinSystem?.collectedTotal ?? 0,
+      vehicleId: this.vehicleId,
+      stageId: this.stageId,
     };
   }
 
@@ -268,6 +373,9 @@ export class GameScene extends Phaser.Scene {
     this.obstacleSystem?.destroy();
     this.parallax?.destroy();
     this.headlightCone?.destroy();
+    this.particles?.destroy();
+    getAudioManager().stopEngine();
+    getAudioManager().stopMusic();
   }
 }
 
